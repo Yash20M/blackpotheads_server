@@ -369,17 +369,8 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
-    const updateData = { ...otherUpdates };
-    if (status) {
-      updateData.status = status;
-    }
-
-    const order = await Order.findByIdAndUpdate(
-      orderId,
-      updateData,
-      { new: true }
-    ).populate('user').populate('items.product');
-
+    // Get the order before update to check previous status
+    const order = await Order.findById(orderId).populate('items.product');
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -387,10 +378,32 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
+    // If order is being cancelled, restore stock
+    if (status === 'Cancelled' && order.status !== 'Cancelled') {
+      for (const item of order.items) {
+        const product = await Product.findById(item.product._id);
+        if (product) {
+          product.stock += item.quantity;
+          await product.save();
+        }
+      }
+    }
+
+    const updateData = { ...otherUpdates };
+    if (status) {
+      updateData.status = status;
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      updateData,
+      { new: true }
+    ).populate('user').populate('items.product');
+
     res.status(200).json({
       success: true,
-      message: "Order updated successfully",
-      order
+      message: status === 'Cancelled' ? "Order cancelled and stock restored" : "Order updated successfully",
+      order: updatedOrder
     });
   } catch (error) {
     console.error("Error updating order:", error);

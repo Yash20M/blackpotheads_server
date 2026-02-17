@@ -20,6 +20,18 @@ import {
   getStockMovementReport,
   getProductsByCategory
 } from "../controllers/admin-controller.js";
+import {
+  getInventoryOverview,
+  updateProductStock,
+  bulkUpdateStock,
+  getLowStockProducts,
+  getOutOfStockProducts,
+  getInventoryStats,
+  getStockMovementReport,
+  getCategoryInventory,
+  getStockAlerts,
+  getInventoryTrends
+} from "../controllers/inventory-controller.js";
 import { adminMiddleware } from "../middlewares/auth-middleware.js";
 import { uploadMultiple, uploadProductImages, uploadQR } from "../middlewares/multer.js";
 import { createProducts } from "../controllers/product-controller.js";
@@ -41,13 +53,16 @@ router.delete("/delete-order/:orderId", adminMiddleware, deleteOrderByAdmin);
 router.get("/order-statistics", adminMiddleware, getOrderStatistics);
 router.get("/test-search", adminMiddleware, testSearch);
 
-// Inventory Management Routes
+// Inventory management routes
 router.get("/inventory/overview", adminMiddleware, getInventoryOverview);
-router.get("/inventory/low-stock", adminMiddleware, getLowStockAlerts);
-router.get("/inventory/analytics", adminMiddleware, getCategoryInventoryAnalytics);
+router.get("/inventory/stats", adminMiddleware, getInventoryStats);
+router.get("/inventory/categories", adminMiddleware, getCategoryInventory);
+router.get("/inventory/alerts", adminMiddleware, getStockAlerts);
+router.get("/inventory/trends", adminMiddleware, getInventoryTrends);
+router.get("/inventory/low-stock", adminMiddleware, getLowStockProducts);
+router.get("/inventory/out-of-stock", adminMiddleware, getOutOfStockProducts);
 router.get("/inventory/stock-movement", adminMiddleware, getStockMovementReport);
-router.get("/inventory/category/:category", adminMiddleware, getProductsByCategory);
-router.put("/inventory/stock/:id", adminMiddleware, updateProductStock);
-router.post("/inventory/bulk-update", adminMiddleware, bulkUpdateStock);
+router.put("/inventory/update-stock/:id", adminMiddleware, updateProductStock);
+router.put("/inventory/bulk-update-stock", adminMiddleware, bulkUpdateStock);
 
 export default router;
