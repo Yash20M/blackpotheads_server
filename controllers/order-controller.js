@@ -19,6 +19,29 @@ const createOrder = async (req, res) => {
             return res.status(400).json({ message: "Total amount is not correct" });
         }
 
+        // Check stock availability and deduct stock
+        for (const item of cart.items) {
+            const product = await Product.findById(item.product._id);
+            
+            if (!product) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: `Product ${item.product.name} not found` 
+                });
+            }
+
+            if (product.stock < item.quantity) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}` 
+                });
+            }
+
+            // Deduct stock automatically
+            product.stock -= item.quantity;
+            await product.save();
+        }
+
         // Create order items with category, size, and price
         const orderItems = cart.items.map((item) => ({
             product: item?.product?._id,
@@ -39,7 +62,7 @@ const createOrder = async (req, res) => {
         await order.save();
         await cart.deleteOne();
 
-        res.status(201).json({ success: true, message: "Order created", order });
+        res.status(201).json({ success: true, message: "Order created successfully. Stock updated.", order });
     } catch (err) {
         console.error("Order creation failed:", err);
         res.status(500).json({ message: "Something went wrong", error: err.message });
