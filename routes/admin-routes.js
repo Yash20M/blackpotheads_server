@@ -11,6 +11,14 @@ import {
   getOrderStatistics,
   testSearch,
   addQR,
+  // Inventory Management
+  getInventoryOverview,
+  getLowStockAlerts,
+  updateProductStock,
+  bulkUpdateStock,
+  getCategoryInventoryAnalytics,
+  getStockMovementReport,
+  getProductsByCategory
 } from "../controllers/admin-controller.js";
 import { adminMiddleware } from "../middlewares/auth-middleware.js";
 import { uploadMultiple, uploadProductImages, uploadQR } from "../middlewares/multer.js";
@@ -32,5 +40,14 @@ router.put("/update-order/:orderId", adminMiddleware, updateOrderStatus);
 router.delete("/delete-order/:orderId", adminMiddleware, deleteOrderByAdmin);
 router.get("/order-statistics", adminMiddleware, getOrderStatistics);
 router.get("/test-search", adminMiddleware, testSearch);
+
+// Inventory Management Routes
+router.get("/inventory/overview", adminMiddleware, getInventoryOverview);
+router.get("/inventory/low-stock", adminMiddleware, getLowStockAlerts);
+router.get("/inventory/analytics", adminMiddleware, getCategoryInventoryAnalytics);
+router.get("/inventory/stock-movement", adminMiddleware, getStockMovementReport);
+router.get("/inventory/category/:category", adminMiddleware, getProductsByCategory);
+router.put("/inventory/stock/:id", adminMiddleware, updateProductStock);
+router.post("/inventory/bulk-update", adminMiddleware, bulkUpdateStock);
 
 export default router;

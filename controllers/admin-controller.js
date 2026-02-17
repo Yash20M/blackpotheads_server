@@ -615,4 +615,454 @@ const addQR = async (req, res) => {
   }
 };
 
-export { login, getallproducts, updateproduct, deleteproduct, getAllOrders, updateOrderStatus, deleteOrderByAdmin, getOrderByIdAdmin, getOrderStatistics, testSearch, addQR };
+export { 
+  login, 
+  getallproducts, 
+  updateproduct, 
+  deleteproduct, 
+  getAllOrders, 
+  updateOrderStatus, 
+  deleteOrderByAdmin, 
+  getOrderByIdAdmin, 
+  getOrderStatistics, 
+  testSearch, 
+  addQR,
+  // Inventory Management
+  getInventoryOverview,
+  getLowStockAlerts,
+  updateProductStock,
+  bulkUpdateStock,
+  getCategoryInventoryAnalytics,
+  getStockMovementReport,
+  getProductsByCategory
+};
+
+// ==================== INVENTORY MANAGEMENT ====================
+
+/**
+ * Get inventory overview with category-wise breakdown
+ */
+const getInventoryOverview = async (req, res) => {
+  try {
+    const { category, lowStock, outOfStock } = req.query;
+    const lowStockThreshold = parseInt(req.query.threshold) || 10;
+
+    // Build filter
+    let filter = {};
+    if (category && Object.values(TSHIRT_CATEGORIES).includes(category)) {
+      filter.category = category;
+    }
+    if (lowStock === 'true') {
+      filter.stock = { $lte: lowStockThreshold, $gt: 0 };
+    }
+    if (outOfStock === 'true') {
+      filter.stock = 0;
+    }
+
+    // Get products with filters
+    const products = await Product.find(filter).sort({ stock: 1 });
+
+    // Category-wise statistics
+    const categoryStats = await Product.aggregate([
+      {
+        $group: {
+          _id: "$category",
+          totalProducts: { $sum: 1 },
+          totalStock: { $sum: "$stock" },
+          averageStock: { $avg: "$stock" },
+          lowStockCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $lte: ["$stock", lowStockThreshold] }, { $gt: ["$stock", 0] }] },
+                1,
+                0
+              ]
+            }
+          },
+          outOfStockCount: {
+            $sum: { $cond: [{ $eq: ["$stock", 0] }, 1, 0] }
+          },
+          totalValue: { $sum: { $multiply: ["$stock", "$price"] } }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Overall statistics
+    const overallStats = await Product.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalProducts: { $sum: 1 },
+          totalStock: { $sum: "$stock" },
+          lowStockCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $lte: ["$stock", lowStockThreshold] }, { $gt: ["$stock", 0] }] },
+                1,
+                0
+              ]
+            }
+          },
+          outOfStockCount: {
+            $sum: { $cond: [{ $eq: ["$stock", 0] }, 1, 0] }
+          },
+          totalInventoryValue: { $sum: { $multiply: ["$stock", "$price"] } }
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      products,
+      categoryStats,
+      overallStats: overallStats[0] || {},
+      filters: { category, lowStock, outOfStock, threshold: lowStockThreshold }
+    });
+  } catch (error) {
+    console.error("Error fetching inventory overview:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch inventory overview",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get low stock alerts
+ */
+const getLowStockAlerts = async (req, res) => {
+  try {
+    const threshold = parseInt(req.query.threshold) || 10;
+    const category = req.query.category;
+
+    let filter = {
+      stock: { $lte: threshold, $gt: 0 }
+    };
+
+    if (category && Object.values(TSHIRT_CATEGORIES).includes(category)) {
+      filter.category = category;
+    }
+
+    const lowStockProducts = await Product.find(filter)
+      .sort({ stock: 1 })
+      .select('name category stock price images');
+
+    const criticalStock = lowStockProducts.filter(p => p.stock <= 5);
+    const warningStock = lowStockProducts.filter(p => p.stock > 5 && p.stock <= threshold);
+
+    res.status(200).json({
+      success: true,
+      alerts: {
+        critical: criticalStock,
+        warning: warningStock,
+        total: lowStockProducts.length
+      },
+      threshold
+    });
+  } catch (error) {
+    console.error("Error fetching low stock alerts:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch low stock alerts",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update stock for a single product
+ */
+const updateProductStock = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stock, operation } = req.body;
+
+    if (stock === undefined || stock === null) {
+      return res.status(400).json({
+        success: false,
+        message: "Stock value is required"
+      });
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
+      });
+    }
+
+    let newStock;
+    if (operation === 'add') {
+      newStock = product.stock + parseInt(stock);
+    } else if (operation === 'subtract') {
+      newStock = Math.max(0, product.stock - parseInt(stock));
+    } else {
+      newStock = parseInt(stock);
+    }
+
+    product.stock = newStock;
+    await product.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Stock updated successfully",
+      product
+    });
+  } catch (error) {
+    console.error("Error updating product stock:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update stock",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Bulk update stock for multiple products
+ */
+const bulkUpdateStock = async (req, res) => {
+  try {
+    const { updates } = req.body;
+
+    if (!Array.isArray(updates) || updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Updates array is required"
+      });
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    for (const update of updates) {
+      try {
+        const { productId, stock, operation } = update;
+
+        const product = await Product.findById(productId);
+        if (!product) {
+          results.failed.push({
+            productId,
+            reason: "Product not found"
+          });
+          continue;
+        }
+
+        let newStock;
+        if (operation === 'add') {
+          newStock = product.stock + parseInt(stock);
+        } else if (operation === 'subtract') {
+          newStock = Math.max(0, product.stock - parseInt(stock));
+        } else {
+          newStock = parseInt(stock);
+        }
+
+        product.stock = newStock;
+        await product.save();
+
+        results.success.push({
+          productId,
+          name: product.name,
+          oldStock: product.stock,
+          newStock
+        });
+      } catch (err) {
+        results.failed.push({
+          productId: update.productId,
+          reason: err.message
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Updated ${results.success.length} products, ${results.failed.length} failed`,
+      results
+    });
+  } catch (error) {
+    console.error("Error in bulk stock update:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update stock",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get category-wise inventory analytics
+ */
+const getCategoryInventoryAnalytics = async (req, res) => {
+  try {
+    const { category } = req.query;
+
+    let matchStage = {};
+    if (category && Object.values(TSHIRT_CATEGORIES).includes(category)) {
+      matchStage.category = category;
+    }
+
+    const analytics = await Product.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+      {
+        $group: {
+          _id: "$category",
+          totalProducts: { $sum: 1 },
+          totalStock: { $sum: "$stock" },
+          averageStock: { $avg: "$stock" },
+          minStock: { $min: "$stock" },
+          maxStock: { $max: "$stock" },
+          averagePrice: { $avg: "$price" },
+          totalInventoryValue: { $sum: { $multiply: ["$stock", "$price"] } },
+          featuredCount: {
+            $sum: { $cond: ["$isFeatured", 1, 0] }
+          }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Get top selling categories from orders
+    const topSellingCategories = await Order.aggregate([
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: "$items.category",
+          totalSold: { $sum: "$items.quantity" },
+          totalRevenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } }
+        }
+      },
+      { $sort: { totalSold: -1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      analytics,
+      topSellingCategories
+    });
+  } catch (error) {
+    console.error("Error fetching category analytics:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch analytics",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get stock movement report
+ */
+const getStockMovementReport = async (req, res) => {
+  try {
+    const { startDate, endDate, category } = req.query;
+
+    let dateFilter = {};
+    if (startDate || endDate) {
+      dateFilter.createdAt = {};
+      if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+      if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+    }
+
+    let categoryFilter = {};
+    if (category && Object.values(TSHIRT_CATEGORIES).includes(category)) {
+      categoryFilter["items.category"] = category;
+    }
+
+    // Get sold items from orders
+    const soldItems = await Order.aggregate([
+      { $match: { ...dateFilter, status: { $ne: "Cancelled" } } },
+      { $unwind: "$items" },
+      ...(Object.keys(categoryFilter).length > 0 ? [{ $match: categoryFilter }] : []),
+      {
+        $group: {
+          _id: {
+            category: "$items.category",
+            productId: "$items.product"
+          },
+          totalSold: { $sum: "$items.quantity" },
+          revenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } }
+        }
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id.productId",
+          foreignField: "_id",
+          as: "productDetails"
+        }
+      },
+      { $unwind: "$productDetails" },
+      {
+        $project: {
+          category: "$_id.category",
+          productId: "$_id.productId",
+          productName: "$productDetails.name",
+          currentStock: "$productDetails.stock",
+          totalSold: 1,
+          revenue: 1
+        }
+      },
+      { $sort: { totalSold: -1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      report: soldItems,
+      filters: { startDate, endDate, category }
+    });
+  } catch (error) {
+    console.error("Error generating stock movement report:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate report",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get products by category for inventory management
+ */
+const getProductsByCategory = async (req, res) => {
+  try {
+    const { category } = req.params;
+
+    if (!Object.values(TSHIRT_CATEGORIES).includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid category. Must be one of: ${Object.values(TSHIRT_CATEGORIES).join(", ")}`
+      });
+    }
+
+    const products = await Product.find({ category }).sort({ stock: 1 });
+
+    const categoryStats = {
+      totalProducts: products.length,
+      totalStock: products.reduce((sum, p) => sum + p.stock, 0),
+      averageStock: products.length > 0 ? products.reduce((sum, p) => sum + p.stock, 0) / products.length : 0,
+      lowStockCount: products.filter(p => p.stock <= 10 && p.stock > 0).length,
+      outOfStockCount: products.filter(p => p.stock === 0).length,
+      totalValue: products.reduce((sum, p) => sum + (p.stock * p.price), 0)
+    };
+
+    res.status(200).json({
+      success: true,
+      category,
+      products,
+      stats: categoryStats
+    });
+  } catch (error) {
+    console.error("Error fetching products by category:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch products",
+      error: error.message
+    });
+  }
+};
+

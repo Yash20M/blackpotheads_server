@@ -1,0 +1,526 @@
+{
+  "info": {
+    "name": "BlackPotHeads - Inventory Management",
+    "description": "Complete inventory management API collection for admin panel",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "your_admin_token_here",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Inventory Management",
+      "item": [
+        {
+          "name": "1. Get Inventory Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/overview",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "overview"]
+            },
+            "description": "Get complete inventory overview with category-wise breakdown"
+          }
+        },
+        {
+          "name": "1.1 Get Overview - Filter by Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/overview?category=Shiva",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "overview"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Shiva"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.2 Get Overview - Low Stock",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/overview?lowStock=true&threshold=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "overview"],
+              "query": [
+                {
+                  "key": "lowStock",
+                  "value": "true"
+                },
+                {
+                  "key": "threshold",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "1.3 Get Overview - Out of Stock",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/overview?outOfStock=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "overview"],
+              "query": [
+                {
+                  "key": "outOfStock",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get Low Stock Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/low-stock?threshold=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "low-stock"],
+              "query": [
+                {
+                  "key": "threshold",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get products with low stock (critical and warning alerts)"
+          }
+        },
+        {
+          "name": "2.1 Low Stock - By Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/low-stock?category=Dark&threshold=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "low-stock"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Dark"
+                },
+                {
+                  "key": "threshold",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Update Product Stock - Set",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/stock/:productId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "stock", ":productId"],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Set stock to a specific value"
+          }
+        },
+        {
+          "name": "3.1 Update Stock - Add",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 20,\n  \"operation\": \"add\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/stock/:productId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "stock", ":productId"],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Add to existing stock"
+          }
+        },
+        {
+          "name": "3.2 Update Stock - Subtract",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stock\": 5,\n  \"operation\": \"subtract\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/stock/:productId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "stock", ":productId"],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "PRODUCT_ID_HERE"
+                }
+              ]
+            },
+            "description": "Subtract from existing stock"
+          }
+        },
+        {
+          "name": "4. Bulk Update Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"updates\": [\n    {\n      \"productId\": \"PRODUCT_ID_1\",\n      \"stock\": 50,\n      \"operation\": \"set\"\n    },\n    {\n      \"productId\": \"PRODUCT_ID_2\",\n      \"stock\": 10,\n      \"operation\": \"add\"\n    },\n    {\n      \"productId\": \"PRODUCT_ID_3\",\n      \"stock\": 5,\n      \"operation\": \"subtract\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/bulk-update",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "bulk-update"]
+            },
+            "description": "Update stock for multiple products at once"
+          }
+        },
+        {
+          "name": "5. Get Category Analytics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "analytics"]
+            },
+            "description": "Get analytics for all categories"
+          }
+        },
+        {
+          "name": "5.1 Analytics - Specific Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/analytics?category=Shiva",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "analytics"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Shiva"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Get Stock Movement Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/stock-movement",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "stock-movement"]
+            },
+            "description": "Get stock movement report from orders"
+          }
+        },
+        {
+          "name": "6.1 Stock Movement - Date Range",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/stock-movement?startDate=2024-01-01&endDate=2024-12-31",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "stock-movement"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2024-12-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6.2 Stock Movement - By Category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/stock-movement?category=Shrooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "stock-movement"],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Shrooms"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Get Products by Category - Shiva",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/category/Shiva",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "category", "Shiva"]
+            }
+          }
+        },
+        {
+          "name": "7.1 Category - Shrooms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/category/Shrooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "category", "Shrooms"]
+            }
+          }
+        },
+        {
+          "name": "7.2 Category - LSD",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/category/LSD",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "category", "LSD"]
+            }
+          }
+        },
+        {
+          "name": "7.3 Category - Chakras",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/category/Chakras",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "category", "Chakras"]
+            }
+          }
+        },
+        {
+          "name": "7.4 Category - Dark",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/category/Dark",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "category", "Dark"]
+            }
+          }
+        },
+        {
+          "name": "7.5 Category - Rick n Morty",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/inventory/category/Rick n Morty",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "inventory", "category", "Rick n Morty"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
