@@ -628,28 +628,6 @@ const addQR = async (req, res) => {
   }
 };
 
-export { 
-  login, 
-  getallproducts, 
-  updateproduct, 
-  deleteproduct, 
-  getAllOrders, 
-  updateOrderStatus, 
-  deleteOrderByAdmin, 
-  getOrderByIdAdmin, 
-  getOrderStatistics, 
-  testSearch, 
-  addQR,
-  // Inventory Management
-  getInventoryOverview,
-  getLowStockAlerts,
-  updateProductStock,
-  bulkUpdateStock,
-  getCategoryInventoryAnalytics,
-  getStockMovementReport,
-  getProductsByCategory
-};
-
 // ==================== INVENTORY MANAGEMENT ====================
 
 /**
@@ -1079,3 +1057,23 @@ const getProductsByCategory = async (req, res) => {
   }
 };
 
+export { 
+  login, 
+  getallproducts, 
+  updateproduct, 
+  deleteproduct, 
+  getAllOrders, 
+  updateOrderStatus, 
+  deleteOrderByAdmin, 
+  getOrderByIdAdmin, 
+  getOrderStatistics, 
+  testSearch, 
+  addQR,
+  getInventoryOverview,
+  getLowStockAlerts,
+  updateProductStock,
+  bulkUpdateStock,
+  getCategoryInventoryAnalytics,
+  getStockMovementReport,
+  getProductsByCategory
+};
