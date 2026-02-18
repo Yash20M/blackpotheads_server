@@ -11,13 +11,6 @@ import {
   getOrderStatistics,
   testSearch,
   addQR,
-  // Inventory Management
-  getInventoryOverview,
-  getLowStockAlerts,
-  updateProductStock,
-  bulkUpdateStock,
-  getCategoryInventoryAnalytics,
-  getStockMovementReport,
   getProductsByCategory
 } from "../controllers/admin-controller.js";
 import {

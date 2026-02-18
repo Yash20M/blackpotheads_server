@@ -101,7 +101,7 @@ const getInventoryOverview = async (req, res) => {
     const query = category ? { category } : {};
     
     const products = await Product.find(query)
-      .select('name category stock sizes images')
+      .select('name category stock sizes images price')
       .sort({ stock: 1 });
 
     const totalProducts = products.length;
@@ -122,6 +122,7 @@ const getInventoryOverview = async (req, res) => {
         name: p.name,
         category: p.category,
         stock: p.stock,
+        price: p.price,
         sizes: p.sizes,
         image: p.images[0]?.url || null,
         stockStatus: p.stock === 0 ? 'Out of Stock' : p.stock <= parseInt(lowStock) ? 'Low Stock' : 'In Stock'
