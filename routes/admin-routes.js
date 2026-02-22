@@ -34,6 +34,10 @@ import {
   deleteOffer,
   toggleOfferStatus
 } from "../controllers/offer-controller.js";
+import {
+  adminGetAllReviews,
+  adminDeleteReview
+} from "../controllers/review-controller.js";
 import { adminMiddleware } from "../middlewares/auth-middleware.js";
 import { uploadMultiple, uploadProductImages, uploadSingle } from "../middlewares/multer.js";
 import { createProducts } from "../controllers/product-controller.js";
@@ -78,5 +82,9 @@ router.get("/offers", adminMiddleware, getAllOffersAdmin);
 router.put("/offers/:offerId", adminMiddleware, uploadSingle, updateOffer);
 router.delete("/offers/:offerId", adminMiddleware, deleteOffer);
 router.patch("/offers/:offerId/toggle", adminMiddleware, toggleOfferStatus);
+
+// Review management routes
+router.get("/reviews", adminMiddleware, adminGetAllReviews);
+router.delete("/reviews/:reviewId", adminMiddleware, adminDeleteReview);
 
 export default router;

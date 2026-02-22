@@ -34,26 +34,36 @@ const adminMiddleware = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            console.log("❌ Admin auth failed: No Bearer token");
             return res.status(401).json({ success: false, message: "Unauthorized - No token provided" });
         }
 
         const token = authHeader.split(" ")[1];
         if (!token) {
+            console.log("❌ Admin auth failed: Token empty");
             return res.status(401).json({ success: false, message: "Unauthorized - No token provided" });
         }
 
+        console.log("🔍 Verifying admin token with ADMIN_SECRET");
         const decoded = jwt.verify(token, process.env.ADMIN_SECRET);
+        console.log("✅ Token decoded:", decoded);
+        
         const user = await User.findById(decoded.id);
         if (!user) {
+            console.log("❌ User not found for ID:", decoded.id);
             return res.status(401).json({ success: false, message: "Unauthorized - User not found" });
         }
+        
         if (!user.isAdmin) {
+            console.log("❌ User is not admin:", user.email);
             return res.status(403).json({ success: false, message: "Forbidden - Admin access required" });
         }
 
+        console.log("✅ Admin authenticated:", user.email);
         req.admin = user;
         next();
     } catch (error) {
+        console.error("❌ Admin middleware error:", error.message);
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({ success: false, message: "Token expired" });
         }

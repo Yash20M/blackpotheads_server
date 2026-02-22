@@ -12,6 +12,7 @@ import orderRoutes from "./routes/order-routes.js";
 import cartRoutes from "./routes/cart-routes.js";
 import webhookRoutes from "./routes/webhook-routes.js";
 import offerRoutes from "./routes/offer-routes.js";
+import reviewRoutes from "./routes/review-routes.js";
 import { startScheduledJobs } from "./utils/scheduledJobs.js";
 dotenv.config();
 
@@ -97,6 +98,7 @@ app.use("/api/v1/cart", cartRoutes)
 app.use("/api/admin", adminRoutes)
 app.use("/api/v1", orderRoutes)
 app.use("/api/v1", offerRoutes)
+app.use("/api/v1/reviews", reviewRoutes)
 
 
 app.use(errorMiddleware);
