@@ -1,6 +1,5 @@
 
 import Product, { TSHIRT_CATEGORIES } from "../models/Product.js";
-import QR from "../models/QR.js";
 import { uploadFileToCloudinary } from "../utils/utility.js";
 
 const createProducts = async (req, res) => {
@@ -230,4 +229,4 @@ const getQR = async (req, res) => {
     }
 };
 
-export { createProducts, getProducts, getFeaturedProducts, getProductById, getAllProducts, getQR };
+export { createProducts, getProducts, getFeaturedProducts, getProductById, getAllProducts };

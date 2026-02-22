@@ -69,3 +69,18 @@ export const calculateTotalAmount = (items=[]) => {
 }
 
 
+
+
+export const deleteFromCloudinary = async (publicId) => {
+  try {
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.destroy(publicId, (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      });
+    });
+  } catch (error) {
+    console.error("Error deleting file from Cloudinary:", error);
+    throw new Error("Error deleting file from Cloudinary");
+  }
+};

@@ -3,18 +3,15 @@ import { createAdminToken } from "../utils/config.js";
 import bcrypt from "bcryptjs";
 import Product, { TSHIRT_CATEGORIES } from "../models/Product.js";
 import Order from "../models/order.js";
-import QR from "../models/QR.js";
+import Payment from "../models/Payment.js";
 import mongoose from "mongoose";
 import { uploadFileToCloudinary } from "../utils/utility.js";
 
 const login = async (req, res) => {
   const { email, password } = req.body;
-  console.log(email, password);
   const admin = await User.findOne({ email }).select("+password");
   if (!admin) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid login credentials" });
+    return res.status(400).json({ success: false, message: "Invalid login credentials" });
   }
   if (!admin.isAdmin) {
     return res.status(400).json({
@@ -24,14 +21,10 @@ const login = async (req, res) => {
   }
   const isPasswordCorrect = await bcrypt.compare(password, admin.password);
   if (!isPasswordCorrect) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid credentials" });
+    return res.status(400).json({ success: false, message: "Invalid credentials" });
   }
   const token = createAdminToken(admin._id);
-  res
-    .status(200)
-    .json({ success: true, message: "Admin logged in successfully", token });
+  res.status(200).json({ success: true, message: "Admin logged in successfully", token });
 };
 
 const getallproducts = async (req, res) => {
@@ -63,31 +56,21 @@ const updateproduct = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if req.body exists
     if (!req.body || Object.keys(req.body).length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Request body is empty or undefined",
-        debug: {
-          body: req.body,
-          files: req.files,
-          file: req.file,
-          contentType: req.get('content-type')
-        }
+        message: "Request body is empty or undefined"
       });
     }
 
     const { name, price, description, category, sizes, stock, isFeatured } = req.body;
-
-    // Build update object with only provided fields
     const updateData = {};
     
-    if (name !== undefined && name !== null && name !== "") updateData.name = name;
-    if (price !== undefined && price !== null && price !== "") updateData.price = price;
-    if (description !== undefined && description !== null && description !== "") updateData.description = description;
+    if (name) updateData.name = name;
+    if (price) updateData.price = price;
+    if (description) updateData.description = description;
     
-    // Validate category if provided
-    if (category !== undefined && category !== null && category !== "") {
+    if (category) {
       if (!Object.values(TSHIRT_CATEGORIES).includes(category)) {
         return res.status(400).json({
           success: false,
@@ -97,37 +80,18 @@ const updateproduct = async (req, res) => {
       updateData.category = category;
     }
     
-    // Handle sizes field
-    if (sizes !== undefined && sizes !== null && sizes !== "") {
-      if (Array.isArray(sizes)) {
-        updateData.sizes = sizes.filter(Boolean);
-      } else {
-        try {
-          const parsed = JSON.parse(sizes);
-          updateData.sizes = Array.isArray(parsed) ? parsed.filter(Boolean) : [sizes.trim()];
-        } catch {
-          updateData.sizes = [sizes.trim()];
-        }
-      }
+    if (sizes) {
+      updateData.sizes = Array.isArray(sizes) ? sizes.filter(Boolean) : [sizes];
     }
     
-    if (stock !== undefined && stock !== null && stock !== "") updateData.stock = stock;
+    if (stock !== undefined) updateData.stock = stock;
     
-    // Handle isFeatured field
-    if (isFeatured !== undefined && isFeatured !== null) {
-      if (typeof isFeatured === 'boolean') {
-        updateData.isFeatured = isFeatured;
-      } else if (typeof isFeatured === 'string') {
-        const lowerValue = isFeatured.toLowerCase().trim();
-        updateData.isFeatured = lowerValue === 'yes' || lowerValue === 'true' || lowerValue === '1';
-      } else {
-        updateData.isFeatured = Boolean(isFeatured);
-      }
+    if (isFeatured !== undefined) {
+      updateData.isFeatured = typeof isFeatured === 'boolean' ? isFeatured : 
+                              isFeatured === 'true' || isFeatured === 'yes' || isFeatured === '1';
     }
     
-    // Handle file uploads
     if (req.files && req.files.length > 0) {
-      console.log("Processing uploaded files:", req.files);
       const cloudinaryUrls = await uploadFileToCloudinary(req.files);
       updateData.images = cloudinaryUrls;
     }
@@ -135,22 +99,14 @@ const updateproduct = async (req, res) => {
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({
         success: false,
-        message: "No valid fields to update",
-        receivedBody: req.body
+        message: "No valid fields to update"
       });
     }
 
-    const product = await Product.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true }
-    );
+    const product = await Product.findByIdAndUpdate(id, updateData, { new: true });
 
     if (!product) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Product not found" 
-      });
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
 
     res.status(200).json({ success: true, product });
@@ -159,8 +115,7 @@ const updateproduct = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: "Failed to update product", 
-      error: error.message,
-      stack: error.stack
+      error: error.message
     });
   }
 };
@@ -168,9 +123,7 @@ const updateproduct = async (req, res) => {
 const deleteproduct = async (req, res) => {
   const { id } = req.params;
   await Product.findByIdAndDelete(id);
-  res
-    .status(200)
-    .json({ success: true, message: "Product deleted successfully" });
+  res.status(200).json({ success: true, message: "Product deleted successfully" });
 };
 
 const getAllOrders = async (req, res) => {
@@ -182,57 +135,35 @@ const getAllOrders = async (req, res) => {
     const filter = req.query.filter || "";
     const categoryFilter = req.query.category || "";
 
-    // Build match conditions
     let matchConditions = {};
 
-    // Handle status filtering
     if (filter && filter.toLowerCase().trim() !== "all") {
-      let statusFilter;
       const filterLower = filter.toLowerCase().trim();
+      const statusMap = {
+        "pending": "Pending",
+        "processing": "Processing",
+        "shipping": "Shipped",
+        "shipped": "Shipped",
+        "out for delivery": "Out for Delivery",
+        "out of delivery": "Out for Delivery",
+        "outfordelivery": "Out for Delivery",
+        "out_for_delivery": "Out for Delivery",
+        "delivered": "Delivered",
+        "cancelled": "Cancelled",
+        "canceled": "Cancelled"
+      };
       
-      switch (filterLower) {
-        case "pending":
-          statusFilter = "Pending";
-          break;
-        case "processing":
-          statusFilter = "Processing";
-          break;
-        case "shipping":
-        case "shipped":
-          statusFilter = "Shipped";
-          break;
-        case "out for delivery":
-        case "out of delivery":
-        case "outfordelivery":
-        case "out_for_delivery":
-          statusFilter = "Out for Delivery";
-          break;
-        case "delivered":
-          statusFilter = "Delivered";
-          break;
-        case "cancelled":
-        case "canceled":
-          statusFilter = "Cancelled";
-          break;
-        default:
-          statusFilter = null;
-      }
-      
-      if (statusFilter) {
-        matchConditions.status = statusFilter;
+      if (statusMap[filterLower]) {
+        matchConditions.status = statusMap[filterLower];
       }
     }
 
-    // Handle category filtering
     if (categoryFilter && Object.values(TSHIRT_CATEGORIES).includes(categoryFilter)) {
       matchConditions["items.category"] = categoryFilter;
     }
 
     const pipeline = [
-      // First apply status filter if any
       ...(Object.keys(matchConditions).length > 0 ? [{ $match: matchConditions }] : []),
-
-      // Populate user
       {
         $lookup: {
           from: "users",
@@ -242,8 +173,6 @@ const getAllOrders = async (req, res) => {
         },
       },
       { $unwind: "$user" },
-
-      // Populate products in items
       {
         $lookup: {
           from: "products",
@@ -252,8 +181,6 @@ const getAllOrders = async (req, res) => {
           as: "populatedProducts",
         },
       },
-
-      // Add populated products to items
       {
         $addFields: {
           items: {
@@ -282,8 +209,6 @@ const getAllOrders = async (req, res) => {
           }
         }
       },
-
-      // Apply search filter
       ...(search ? [{
         $match: {
           $or: [
@@ -311,11 +236,7 @@ const getAllOrders = async (req, res) => {
           ]
         }
       }] : []),
-
-      // Sort by creation date (newest first)
       { $sort: { createdAt: -1 } },
-
-      // For pagination and total count
       {
         $facet: {
           data: [{ $skip: skip }, { $limit: limit }],
@@ -328,14 +249,35 @@ const getAllOrders = async (req, res) => {
     const orders = result[0].data;
     const totalOrders = result[0].total[0]?.count || 0;
 
-    // Fetch QR image
-    const qr = await QR.findOne();
-    const qrImage = qr ? qr.qrImage : null;
+    // Fetch payment details for each order
+    const ordersWithPayments = await Promise.all(
+      orders.map(async (order) => {
+        const payment = await Payment.findOne({ orderId: order._id });
+        
+        // Check if payment is pending (order is Online but payment not captured)
+        const isPaymentPending = order.paymentMethod === "Online" && 
+                                 (!payment || payment.status !== "captured");
+        
+        return {
+          ...order,
+          payment: payment ? {
+            _id: payment._id,
+            razorpayOrderId: payment.razorpayOrderId,
+            razorpayPaymentId: payment.razorpayPaymentId,
+            amount: payment.amount,
+            currency: payment.currency,
+            status: payment.status,
+            paymentMethod: payment.paymentMethod,
+            createdAt: payment.createdAt
+          } : null,
+          paymentWarning: isPaymentPending ? "PAYMENT_PENDING" : null
+        };
+      })
+    );
 
     res.status(200).json({
       success: true,
-      orders,
-      qrImage,
+      orders: ordersWithPayments,
       currentPage: page,
       totalPages: Math.ceil(totalOrders / limit),
       totalOrders,
@@ -360,7 +302,6 @@ const updateOrderStatus = async (req, res) => {
     const { orderId } = req.params;
     const { status, ...otherUpdates } = req.body;
 
-    // Validate status if provided
     const validStatuses = ['Pending', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];
     if (status && !validStatuses.includes(status)) {
       return res.status(400).json({
@@ -369,7 +310,6 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
-    // Get the order before update to check previous status
     const order = await Order.findById(orderId).populate('items.product');
     if (!order) {
       return res.status(404).json({
@@ -378,7 +318,6 @@ const updateOrderStatus = async (req, res) => {
       });
     }
 
-    // If order is being cancelled, restore stock
     if (status === 'Cancelled' && order.status !== 'Cancelled') {
       for (const item of order.items) {
         const product = await Product.findById(item.product._id);
@@ -456,9 +395,31 @@ const getOrderByIdAdmin = async (req, res) => {
       });
     }
 
+    // Fetch payment details
+    const payment = await Payment.findOne({ orderId: order._id });
+
+    // Check if payment is pending
+    const isPaymentPending = order.paymentMethod === "Online" && 
+                             (!payment || payment.status !== "captured");
+
     res.status(200).json({
       success: true,
-      order
+      order: {
+        ...order.toObject(),
+        payment: payment ? {
+          _id: payment._id,
+          razorpayOrderId: payment.razorpayOrderId,
+          razorpayPaymentId: payment.razorpayPaymentId,
+          razorpaySignature: payment.razorpaySignature,
+          amount: payment.amount,
+          currency: payment.currency,
+          status: payment.status,
+          paymentMethod: payment.paymentMethod,
+          createdAt: payment.createdAt,
+          updatedAt: payment.updatedAt
+        } : null,
+        paymentWarning: isPaymentPending ? "PAYMENT_PENDING" : null
+      }
     });
   } catch (error) {
     console.error("Error fetching order:", error);
@@ -470,7 +431,6 @@ const getOrderByIdAdmin = async (req, res) => {
   }
 };
 
-// Debug function to get order counts by status
 const getOrderStatistics = async (req, res) => {
   try {
     const pipeline = [
@@ -486,11 +446,7 @@ const getOrderStatistics = async (req, res) => {
     ];
 
     const statusCounts = await Order.aggregate(pipeline);
-    
-    // Also get all unique statuses in the database
     const allStatuses = await Order.distinct("status");
-    
-    // Get some sample orders with their total amounts
     const sampleOrders = await Order.find({})
       .select('_id totalAmount status')
       .limit(5)
@@ -513,19 +469,16 @@ const getOrderStatistics = async (req, res) => {
   }
 };
 
-// Test search functionality
 const testSearch = async (req, res) => {
   try {
     const { testSearch } = req.query;
     
-    // Test if we can find orders with the search term
     const directSearch = await Order.find({
       $or: [
         { totalAmount: { $regex: testSearch.toString(), $options: "i" } }
       ]
     }).select('_id totalAmount status').limit(5);
     
-    // Test string conversion
     const stringSearch = await Order.aggregate([
       {
         $match: {
@@ -567,496 +520,6 @@ const testSearch = async (req, res) => {
   }
 };
 
-const addQR = async (req, res) => {
-  try {
-    // Check if file is uploaded
-    if (!req.file && (!req.files || req.files.length === 0)) {
-      return res.status(400).json({
-        success: false,
-        message: "QR image is required"
-      });
-    }
-
-    // Handle single file from req.file or first file from req.files
-    const file = req.file || (req.files && req.files[0]);
-    
-    if (!file) {
-      return res.status(400).json({
-        success: false,
-        message: "QR image file is required"
-      });
-    }
-
-    // Upload file to Cloudinary
-    const uploadedFiles = await uploadFileToCloudinary([file]);
-    
-    if (!uploadedFiles || uploadedFiles.length === 0) {
-      return res.status(500).json({
-        success: false,
-        message: "Failed to upload QR image to Cloudinary"
-      });
-    }
-
-    const qrImageData = uploadedFiles[0];
-
-    // Check if QR already exists, if so update it, otherwise create new
-    let qr = await QR.findOne();
-    
-    if (qr) {
-      // Update existing QR
-      qr.qrImage = qrImageData;
-      await qr.save();
-    } else {
-      // Create new QR
-      qr = await QR.create({
-        qrImage: qrImageData
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "QR image uploaded successfully",
-      qr
-    });
-  } catch (error) {
-    console.error("Error uploading QR image:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to upload QR image",
-      error: error.message
-    });
-  }
-};
-
-// ==================== INVENTORY MANAGEMENT ====================
-
-/**
- * Get inventory overview with category-wise breakdown
- */
-const getInventoryOverview = async (req, res) => {
-  try {
-    const { category, lowStock, outOfStock } = req.query;
-    const lowStockThreshold = parseInt(req.query.threshold) || 10;
-
-    // Build filter
-    let filter = {};
-    if (category && Object.values(TSHIRT_CATEGORIES).includes(category)) {
-      filter.category = category;
-    }
-    if (lowStock === 'true') {
-      filter.stock = { $lte: lowStockThreshold, $gt: 0 };
-    }
-    if (outOfStock === 'true') {
-      filter.stock = 0;
-    }
-
-    // Get products with filters
-    const products = await Product.find(filter).sort({ stock: 1 });
-
-    // Category-wise statistics
-    const categoryStats = await Product.aggregate([
-      {
-        $group: {
-          _id: "$category",
-          totalProducts: { $sum: 1 },
-          totalStock: { $sum: "$stock" },
-          averageStock: { $avg: "$stock" },
-          lowStockCount: {
-            $sum: {
-              $cond: [
-                { $and: [{ $lte: ["$stock", lowStockThreshold] }, { $gt: ["$stock", 0] }] },
-                1,
-                0
-              ]
-            }
-          },
-          outOfStockCount: {
-            $sum: { $cond: [{ $eq: ["$stock", 0] }, 1, 0] }
-          },
-          totalValue: { $sum: { $multiply: ["$stock", "$price"] } }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
-
-    // Overall statistics
-    const overallStats = await Product.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalProducts: { $sum: 1 },
-          totalStock: { $sum: "$stock" },
-          lowStockCount: {
-            $sum: {
-              $cond: [
-                { $and: [{ $lte: ["$stock", lowStockThreshold] }, { $gt: ["$stock", 0] }] },
-                1,
-                0
-              ]
-            }
-          },
-          outOfStockCount: {
-            $sum: { $cond: [{ $eq: ["$stock", 0] }, 1, 0] }
-          },
-          totalInventoryValue: { $sum: { $multiply: ["$stock", "$price"] } }
-        }
-      }
-    ]);
-
-    res.status(200).json({
-      success: true,
-      products,
-      categoryStats,
-      overallStats: overallStats[0] || {},
-      filters: { category, lowStock, outOfStock, threshold: lowStockThreshold }
-    });
-  } catch (error) {
-    console.error("Error fetching inventory overview:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch inventory overview",
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get low stock alerts
- */
-const getLowStockAlerts = async (req, res) => {
-  try {
-    const threshold = parseInt(req.query.threshold) || 10;
-    const category = req.query.category;
-
-    let filter = {
-      stock: { $lte: threshold, $gt: 0 }
-    };
-
-    if (category && Object.values(TSHIRT_CATEGORIES).includes(category)) {
-      filter.category = category;
-    }
-
-    const lowStockProducts = await Product.find(filter)
-      .sort({ stock: 1 })
-      .select('name category stock price images');
-
-    const criticalStock = lowStockProducts.filter(p => p.stock <= 5);
-    const warningStock = lowStockProducts.filter(p => p.stock > 5 && p.stock <= threshold);
-
-    res.status(200).json({
-      success: true,
-      alerts: {
-        critical: criticalStock,
-        warning: warningStock,
-        total: lowStockProducts.length
-      },
-      threshold
-    });
-  } catch (error) {
-    console.error("Error fetching low stock alerts:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch low stock alerts",
-      error: error.message
-    });
-  }
-};
-
-/**
- * Update stock for a single product
- */
-const updateProductStock = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { stock, operation } = req.body;
-
-    if (stock === undefined || stock === null) {
-      return res.status(400).json({
-        success: false,
-        message: "Stock value is required"
-      });
-    }
-
-    const product = await Product.findById(id);
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found"
-      });
-    }
-
-    let newStock;
-    if (operation === 'add') {
-      newStock = product.stock + parseInt(stock);
-    } else if (operation === 'subtract') {
-      newStock = Math.max(0, product.stock - parseInt(stock));
-    } else {
-      newStock = parseInt(stock);
-    }
-
-    product.stock = newStock;
-    await product.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Stock updated successfully",
-      product
-    });
-  } catch (error) {
-    console.error("Error updating product stock:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to update stock",
-      error: error.message
-    });
-  }
-};
-
-/**
- * Bulk update stock for multiple products
- */
-const bulkUpdateStock = async (req, res) => {
-  try {
-    const { updates } = req.body;
-
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Updates array is required"
-      });
-    }
-
-    const results = {
-      success: [],
-      failed: []
-    };
-
-    for (const update of updates) {
-      try {
-        const { productId, stock, operation } = update;
-
-        const product = await Product.findById(productId);
-        if (!product) {
-          results.failed.push({
-            productId,
-            reason: "Product not found"
-          });
-          continue;
-        }
-
-        let newStock;
-        if (operation === 'add') {
-          newStock = product.stock + parseInt(stock);
-        } else if (operation === 'subtract') {
-          newStock = Math.max(0, product.stock - parseInt(stock));
-        } else {
-          newStock = parseInt(stock);
-        }
-
-        product.stock = newStock;
-        await product.save();
-
-        results.success.push({
-          productId,
-          name: product.name,
-          oldStock: product.stock,
-          newStock
-        });
-      } catch (err) {
-        results.failed.push({
-          productId: update.productId,
-          reason: err.message
-        });
-      }
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Updated ${results.success.length} products, ${results.failed.length} failed`,
-      results
-    });
-  } catch (error) {
-    console.error("Error in bulk stock update:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to update stock",
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get category-wise inventory analytics
- */
-const getCategoryInventoryAnalytics = async (req, res) => {
-  try {
-    const { category } = req.query;
-
-    let matchStage = {};
-    if (category && Object.values(TSHIRT_CATEGORIES).includes(category)) {
-      matchStage.category = category;
-    }
-
-    const analytics = await Product.aggregate([
-      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
-      {
-        $group: {
-          _id: "$category",
-          totalProducts: { $sum: 1 },
-          totalStock: { $sum: "$stock" },
-          averageStock: { $avg: "$stock" },
-          minStock: { $min: "$stock" },
-          maxStock: { $max: "$stock" },
-          averagePrice: { $avg: "$price" },
-          totalInventoryValue: { $sum: { $multiply: ["$stock", "$price"] } },
-          featuredCount: {
-            $sum: { $cond: ["$isFeatured", 1, 0] }
-          }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
-
-    // Get top selling categories from orders
-    const topSellingCategories = await Order.aggregate([
-      { $unwind: "$items" },
-      {
-        $group: {
-          _id: "$items.category",
-          totalSold: { $sum: "$items.quantity" },
-          totalRevenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } }
-        }
-      },
-      { $sort: { totalSold: -1 } }
-    ]);
-
-    res.status(200).json({
-      success: true,
-      analytics,
-      topSellingCategories
-    });
-  } catch (error) {
-    console.error("Error fetching category analytics:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch analytics",
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get stock movement report
- */
-const getStockMovementReport = async (req, res) => {
-  try {
-    const { startDate, endDate, category } = req.query;
-
-    let dateFilter = {};
-    if (startDate || endDate) {
-      dateFilter.createdAt = {};
-      if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
-      if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
-    }
-
-    let categoryFilter = {};
-    if (category && Object.values(TSHIRT_CATEGORIES).includes(category)) {
-      categoryFilter["items.category"] = category;
-    }
-
-    // Get sold items from orders
-    const soldItems = await Order.aggregate([
-      { $match: { ...dateFilter, status: { $ne: "Cancelled" } } },
-      { $unwind: "$items" },
-      ...(Object.keys(categoryFilter).length > 0 ? [{ $match: categoryFilter }] : []),
-      {
-        $group: {
-          _id: {
-            category: "$items.category",
-            productId: "$items.product"
-          },
-          totalSold: { $sum: "$items.quantity" },
-          revenue: { $sum: { $multiply: ["$items.quantity", "$items.price"] } }
-        }
-      },
-      {
-        $lookup: {
-          from: "products",
-          localField: "_id.productId",
-          foreignField: "_id",
-          as: "productDetails"
-        }
-      },
-      { $unwind: "$productDetails" },
-      {
-        $project: {
-          category: "$_id.category",
-          productId: "$_id.productId",
-          productName: "$productDetails.name",
-          currentStock: "$productDetails.stock",
-          totalSold: 1,
-          revenue: 1
-        }
-      },
-      { $sort: { totalSold: -1 } }
-    ]);
-
-    res.status(200).json({
-      success: true,
-      report: soldItems,
-      filters: { startDate, endDate, category }
-    });
-  } catch (error) {
-    console.error("Error generating stock movement report:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to generate report",
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get products by category for inventory management
- */
-const getProductsByCategory = async (req, res) => {
-  try {
-    const { category } = req.params;
-
-    if (!Object.values(TSHIRT_CATEGORIES).includes(category)) {
-      return res.status(400).json({
-        success: false,
-        message: `Invalid category. Must be one of: ${Object.values(TSHIRT_CATEGORIES).join(", ")}`
-      });
-    }
-
-    const products = await Product.find({ category }).sort({ stock: 1 });
-
-    const categoryStats = {
-      totalProducts: products.length,
-      totalStock: products.reduce((sum, p) => sum + p.stock, 0),
-      averageStock: products.length > 0 ? products.reduce((sum, p) => sum + p.stock, 0) / products.length : 0,
-      lowStockCount: products.filter(p => p.stock <= 10 && p.stock > 0).length,
-      outOfStockCount: products.filter(p => p.stock === 0).length,
-      totalValue: products.reduce((sum, p) => sum + (p.stock * p.price), 0)
-    };
-
-    res.status(200).json({
-      success: true,
-      category,
-      products,
-      stats: categoryStats
-    });
-  } catch (error) {
-    console.error("Error fetching products by category:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch products",
-      error: error.message
-    });
-  }
-};
-
 export { 
   login, 
   getallproducts, 
@@ -1067,13 +530,237 @@ export {
   deleteOrderByAdmin, 
   getOrderByIdAdmin, 
   getOrderStatistics, 
-  testSearch, 
-  addQR,
-  getInventoryOverview,
-  getLowStockAlerts,
-  updateProductStock,
-  bulkUpdateStock,
-  getCategoryInventoryAnalytics,
-  getStockMovementReport,
-  getProductsByCategory
+  testSearch,
+  getAllPayments,
+  getPaymentById,
+  getPaymentStatistics,
+  cleanupAbandonedOrders
+};
+
+
+/**
+ * Get all payments with filters (Admin)
+ */
+const getAllPayments = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const status = req.query.status || "";
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    const userId = req.query.userId;
+
+    let matchConditions = {};
+
+    if (status && status.toLowerCase() !== "all") {
+      matchConditions.status = status;
+    }
+
+    if (startDate || endDate) {
+      matchConditions.createdAt = {};
+      if (startDate) {
+        matchConditions.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        matchConditions.createdAt.$lte = new Date(endDate);
+      }
+    }
+
+    if (userId) {
+      const orders = await Order.find({ user: userId }).select('_id');
+      const orderIds = orders.map(order => order._id);
+      matchConditions.orderId = { $in: orderIds };
+    }
+
+    const payments = await Payment.find(matchConditions)
+      .populate({
+        path: 'orderId',
+        populate: {
+          path: 'user',
+          select: 'name email'
+        }
+      })
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const totalPayments = await Payment.countDocuments(matchConditions);
+
+    res.status(200).json({
+      success: true,
+      payments,
+      currentPage: page,
+      totalPages: Math.ceil(totalPayments / limit),
+      totalPayments,
+      appliedFilters: {
+        status,
+        startDate,
+        endDate,
+        userId
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching payments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payments",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get specific payment by ID (Admin)
+ */
+const getPaymentById = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+
+    const payment = await Payment.findById(paymentId)
+      .populate({
+        path: 'orderId',
+        populate: [
+          { path: 'user', select: 'name email phone' },
+          { path: 'items.product' }
+        ]
+      });
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      payment
+    });
+  } catch (error) {
+    console.error("Error fetching payment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Get payment statistics (Admin)
+ */
+const getPaymentStatistics = async (req, res) => {
+  try {
+    const totalPayments = await Payment.countDocuments();
+    
+    const statusBreakdown = await Payment.aggregate([
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+          totalAmount: { $sum: "$amount" }
+        }
+      }
+    ]);
+
+    const totalRevenue = await Payment.aggregate([
+      {
+        $match: { status: { $in: ["captured", "authorized"] } }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" }
+        }
+      }
+    ]);
+
+    const successfulPayments = await Payment.countDocuments({ 
+      status: { $in: ["captured", "authorized"] } 
+    });
+    
+    const failedPayments = await Payment.countDocuments({ status: "failed" });
+    
+    const successRate = totalPayments > 0 
+      ? ((successfulPayments / totalPayments) * 100).toFixed(2) 
+      : 0;
+
+    const recentPayments = await Payment.find()
+      .populate({
+        path: 'orderId',
+        populate: { path: 'user', select: 'name email' }
+      })
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    res.status(200).json({
+      success: true,
+      statistics: {
+        totalPayments,
+        successfulPayments,
+        failedPayments,
+        successRate: `${successRate}%`,
+        totalRevenue: totalRevenue[0]?.total || 0,
+        statusBreakdown,
+        recentPayments
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching payment statistics:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payment statistics",
+      error: error.message
+    });
+  }
+};
+
+
+/**
+ * Clean up abandoned orders (orders pending for more than 24 hours)
+ */
+const cleanupAbandonedOrders = async (req, res) => {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    // Find pending orders older than 24 hours
+    const abandonedOrders = await Order.find({
+      status: "Pending",
+      paymentMethod: "Online",
+      createdAt: { $lt: twentyFourHoursAgo }
+    });
+
+    let cleanedCount = 0;
+
+    for (const order of abandonedOrders) {
+      // Check if payment is still in created status
+      const payment = await Payment.findOne({ orderId: order._id });
+      
+      if (payment && payment.status === "created") {
+        // Mark order as cancelled
+        order.status = "Cancelled";
+        await order.save();
+
+        // Mark payment as failed
+        payment.status = "failed";
+        await payment.save();
+
+        cleanedCount++;
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Cleaned up ${cleanedCount} abandoned orders`,
+      cleanedCount
+    });
+  } catch (error) {
+    console.error("Error cleaning up abandoned orders:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to cleanup abandoned orders",
+      error: error.message
+    });
+  }
 };

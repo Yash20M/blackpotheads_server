@@ -10,8 +10,10 @@ import {
   getOrderByIdAdmin,
   getOrderStatistics,
   testSearch,
-  addQR,
-  getProductsByCategory
+  getAllPayments,
+  getPaymentById,
+  getPaymentStatistics,
+  cleanupAbandonedOrders
 } from "../controllers/admin-controller.js";
 import {
   getInventoryOverview,
@@ -25,15 +27,21 @@ import {
   getStockAlerts,
   getInventoryTrends
 } from "../controllers/inventory-controller.js";
+import {
+  createOffer,
+  getAllOffersAdmin,
+  updateOffer,
+  deleteOffer,
+  toggleOfferStatus
+} from "../controllers/offer-controller.js";
 import { adminMiddleware } from "../middlewares/auth-middleware.js";
-import { uploadMultiple, uploadProductImages, uploadQR } from "../middlewares/multer.js";
+import { uploadMultiple, uploadProductImages, uploadSingle } from "../middlewares/multer.js";
 import { createProducts } from "../controllers/product-controller.js";
 
 const router = Router();
 
 router.post("/login", login);
 router.post("/add-product", adminMiddleware, uploadMultiple, createProducts);
-router.post("/add-qr", adminMiddleware, uploadQR, addQR);
 router.get("/get-all-products", adminMiddleware, getallproducts);
 router.put("/update-product/:id", adminMiddleware, uploadProductImages, updateproduct);
 router.delete("/delete-product/:id", adminMiddleware, deleteproduct);
@@ -44,6 +52,7 @@ router.get("/get-order/:orderId", adminMiddleware, getOrderByIdAdmin);
 router.put("/update-order/:orderId", adminMiddleware, updateOrderStatus);
 router.delete("/delete-order/:orderId", adminMiddleware, deleteOrderByAdmin);
 router.get("/order-statistics", adminMiddleware, getOrderStatistics);
+router.post("/cleanup-abandoned-orders", adminMiddleware, cleanupAbandonedOrders);
 router.get("/test-search", adminMiddleware, testSearch);
 
 // Inventory management routes
@@ -57,5 +66,17 @@ router.get("/inventory/out-of-stock", adminMiddleware, getOutOfStockProducts);
 router.get("/inventory/stock-movement", adminMiddleware, getStockMovementReport);
 router.put("/inventory/update-stock/:id", adminMiddleware, updateProductStock);
 router.put("/inventory/bulk-update-stock", adminMiddleware, bulkUpdateStock);
+
+// Payment management routes
+router.get("/payments", adminMiddleware, getAllPayments);
+router.get("/payments/:paymentId", adminMiddleware, getPaymentById);
+router.get("/payment-statistics", adminMiddleware, getPaymentStatistics);
+
+// Offer management routes
+router.post("/offers", adminMiddleware, uploadSingle, createOffer);
+router.get("/offers", adminMiddleware, getAllOffersAdmin);
+router.put("/offers/:offerId", adminMiddleware, uploadSingle, updateOffer);
+router.delete("/offers/:offerId", adminMiddleware, deleteOffer);
+router.patch("/offers/:offerId/toggle", adminMiddleware, toggleOfferStatus);
 
 export default router;

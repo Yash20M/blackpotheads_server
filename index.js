@@ -10,6 +10,9 @@ import wishlistRoutes from "./routes/wishlist-routes.js";
 import errorMiddleware from "./middlewares/error-middleware.js";
 import orderRoutes from "./routes/order-routes.js";
 import cartRoutes from "./routes/cart-routes.js";
+import webhookRoutes from "./routes/webhook-routes.js";
+import offerRoutes from "./routes/offer-routes.js";
+import { startScheduledJobs } from "./utils/scheduledJobs.js";
 dotenv.config();
 
 
@@ -60,7 +63,7 @@ const corsOptions = {
         }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 
@@ -68,13 +71,15 @@ app.use(cors(corsOptions));
 
 const PORT = process.env.PORT || 3000;
 
+// Webhook route MUST come before express.json() middleware
+app.use("/api/webhook", webhookRoutes);
+
 // Serve static files from uploads directory
 app.use("/uploads", express.static("uploads"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
-
 app.get("/api/v1/health", (req, res) => {
     res.status(200).json({
         status: "success",
@@ -91,9 +96,13 @@ app.use("/api/v1/wishlist", wishlistRoutes)
 app.use("/api/v1/cart", cartRoutes)
 app.use("/api/admin", adminRoutes)
 app.use("/api/v1", orderRoutes)
+app.use("/api/v1", offerRoutes)
 
 
 app.use(errorMiddleware);
+
+// Start scheduled jobs
+startScheduledJobs();
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
