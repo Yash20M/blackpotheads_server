@@ -27,6 +27,71 @@ const login = async (req, res) => {
   res.status(200).json({ success: true, message: "Admin logged in successfully", token });
 };
 
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const adminId = req.admin._id;
+
+    // Validate input
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required"
+      });
+    }
+
+    // Check if new passwords match
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password and confirm password do not match"
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 8 characters long"
+      });
+    }
+
+    // Get admin with password
+    const admin = await User.findById(adminId).select("+password");
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found"
+      });
+    }
+
+    // Verify current password
+    const isPasswordCorrect = await bcrypt.compare(currentPassword, admin.password);
+    if (!isPasswordCorrect) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect"
+      });
+    }
+
+    // Set new password (will be hashed by pre-save hook)
+    admin.password = newPassword;
+    await admin.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password changed successfully"
+    });
+  } catch (error) {
+    console.error("Error changing password:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to change password",
+      error: error.message
+    });
+  }
+};
+
 const getallproducts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -521,7 +586,8 @@ const testSearch = async (req, res) => {
 };
 
 export { 
-  login, 
+  login,
+  changePassword,
   getallproducts, 
   updateproduct, 
   deleteproduct, 

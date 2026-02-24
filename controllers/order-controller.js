@@ -175,11 +175,9 @@ const verifyPayment = async (req, res) => {
             }
         }
 
-        // Update order status
-        order.status = "Processing";
-        await order.save();
-
-        console.log("✅ Order status updated to Processing");
+        // Keep order status as Pending - admin will update it later
+        // order.status remains "Pending"
+        console.log("✅ Order remains in Pending status - awaiting admin confirmation");
 
         // Clear cart
         await Cart.findOneAndDelete({ user: userId });

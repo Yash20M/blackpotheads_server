@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   login,
+  changePassword,
   getallproducts,
   updateproduct,
   deleteproduct,
@@ -45,6 +46,7 @@ import { createProducts } from "../controllers/product-controller.js";
 const router = Router();
 
 router.post("/login", login);
+router.put("/change-password", adminMiddleware, changePassword);
 router.post("/add-product", adminMiddleware, uploadMultiple, createProducts);
 router.get("/get-all-products", adminMiddleware, getallproducts);
 router.put("/update-product/:id", adminMiddleware, uploadProductImages, updateproduct);
