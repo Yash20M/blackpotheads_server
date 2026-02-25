@@ -1,54 +1,17 @@
 node_modules
 npm-debug.log
+.env
 .git
 .gitignore
 README.md
-README-Docker.md
-# .env files (commented out to allow .env in container)
-# .env
-# .env.local
-# .env.development
-# .env.test
-# .env.production
-.nyc_output
-coverage
-.nyc_output
-.coverage
-.cache
-.DS_Store
-Thumbs.db
-*.log
-logs
-*.pid
-*.seed
-*.pid.lock
-.npm
-.eslintcache
-.node_repl_history
-.yarn-integrity
 .vscode
 .idea
-*.swp
-*.swo
-*~
-
-# Docker files (exclude from build context)
-Dockerfile.dev
-docker-compose.dev.yml
-docker-compose.override.yml
-docker-compose.prod.yml
-
-# Documentation
 *.md
-docs/
-
-# Test files
-test/
-tests/
-__tests__/
-*.test.js
-*.spec.js
-
-# Development tools
-.nodemon.json
-nodemon.json 
+.DS_Store
+uploads/*
+!uploads/.gitkeep
+.dockerignore
+Dockerfile
+Dockerfile.dev
+docker-compose.yml
+docker-compose.dev.yml
