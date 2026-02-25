@@ -31,7 +31,7 @@ const corsOptions = {
 
         const allowedOrigins = [
             process.env.FRONTEND_URL,
-            "https://blackpotheads.com/",
+            "https://api.blackpotheads.com",
             "http://localhost:5173",
 
         ].filter(Boolean);
