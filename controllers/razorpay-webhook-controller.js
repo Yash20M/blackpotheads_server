@@ -44,6 +44,14 @@ const handleRazorpayWebhook = async (req, res) => {
                 await handleOrderPaid(payloadData);
                 break;
 
+            case "refund.created":
+                await handleRefundCreated(payloadData);
+                break;
+
+            case "refund.processed":
+                await handleRefundProcessed(payloadData);
+                break;
+
             default:
                 console.log(`Unhandled event: ${event}`);
         }
@@ -157,6 +165,69 @@ const handleOrderPaid = async (orderData) => {
         // Additional logic if needed
     } catch (err) {
         console.error("Error handling order paid:", err);
+    }
+};
+
+/**
+ * Handle refund created event
+ */
+const handleRefundCreated = async (refundData) => {
+    try {
+        const payment = await Payment.findOne({ 
+            razorpayPaymentId: refundData.payment_id 
+        });
+
+        if (payment) {
+            payment.refundId = refundData.id;
+            payment.refundStatus = "created";
+            await payment.save();
+
+            console.log(`Refund created: ${refundData.id} for payment: ${refundData.payment_id}`);
+        }
+    } catch (err) {
+        console.error("Error handling refund created:", err);
+    }
+};
+
+/**
+ * Handle refund processed event
+ */
+const handleRefundProcessed = async (refundData) => {
+    try {
+        const payment = await Payment.findOne({ 
+            razorpayPaymentId: refundData.payment_id 
+        }).populate('orderId');
+
+        if (payment) {
+            payment.refundId = refundData.id;
+            payment.refundStatus = "processed";
+            payment.status = "refunded";
+            await payment.save();
+
+            // Update order status to Refunded
+            const order = await Order.findById(payment.orderId).populate('items.product');
+            if (order) {
+                const previousStatus = order.status;
+                order.status = "Refunded";
+                await order.save();
+
+                // Restore stock if it was previously deducted
+                if (previousStatus === "Processing" || previousStatus === "Shipped" || previousStatus === "Delivered") {
+                    for (const item of order.items) {
+                        const product = await Product.findById(item.product._id);
+                        if (product) {
+                            product.stock += item.quantity;
+                            await product.save();
+                            console.log(`Stock restored for ${product.name}: +${item.quantity}`);
+                        }
+                    }
+                }
+
+                console.log(`Order ${order._id} marked as Refunded and stock restored`);
+            }
+        }
+    } catch (err) {
+        console.error("Error handling refund processed:", err);
     }
 };
 

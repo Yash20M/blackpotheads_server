@@ -32,6 +32,14 @@ const paymentSchema = new mongoose.Schema({
   paymentMethod: {
     type: String
   },
+  refundId: {
+    type: String
+  },
+  refundStatus: {
+    type: String,
+    enum: ["created", "processed"],
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now

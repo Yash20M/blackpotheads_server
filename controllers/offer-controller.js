@@ -150,6 +150,7 @@ const getActiveOffers = async (req, res) => {
 
     const offers = await Offer.find(query).sort({ createdAt: -1 });
 
+    
     res.status(200).json({
       success: true,
       offers,
