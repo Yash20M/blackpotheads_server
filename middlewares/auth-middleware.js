@@ -70,5 +70,39 @@ const adminMiddleware = async (req, res, next) => {
     }
 };
 
+/**
+ * Optional authentication middleware
+ * Attaches user to request if token is valid, but doesn't block if no token
+ */
+const optionalAuthMiddleware = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        // If no token, just continue without user
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return next();
+        }
 
-export { authMiddleware, adminMiddleware };
+        const token = authHeader.split(" ")[1];
+        if (!token) {
+            return next();
+        }
+
+        // Try to verify token
+        const decoded = jwt.verify(token, process.env.SECRETKEY);
+        const user = await User.findById(decoded.id);
+        
+        if (user) {
+            req.user = user;
+        }
+        
+        next();
+    } catch (error) {
+        // If token is invalid or expired, just continue without user
+        // Don't block the request
+        next();
+    }
+};
+
+
+export { authMiddleware, adminMiddleware, optionalAuthMiddleware };

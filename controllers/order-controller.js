@@ -122,32 +122,25 @@ const verifyPayment = async (req, res) => {
         const { razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId } = req.body;
         const userId = req.user._id;
 
-        console.log("🔍 Verifying payment:", {
-            razorpayOrderId,
-            razorpayPaymentId,
-            orderId,
-            userId
-        });
 
         // Verify signature
         const isValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
 
         if (!isValid) {
-            console.error("❌ Invalid payment signature");
+      
             return res.status(400).json({ 
                 success: false, 
                 message: "Invalid payment signature" 
             });
         }
 
-        console.log("✅ Payment signature verified");
+      
 
         // Find order and payment
         const order = await Order.findOne({ _id: orderId, user: userId }).populate('items.product');
         const payment = await Payment.findOne({ orderId, razorpayOrderId });
 
-        console.log("📦 Found order:", order ? order._id : "NOT FOUND");
-        console.log("💳 Found payment:", payment ? payment._id : "NOT FOUND");
+      
 
         if (!order || !payment) {
             return res.status(404).json({ 
@@ -162,7 +155,7 @@ const verifyPayment = async (req, res) => {
         payment.status = "captured";
         await payment.save();
 
-        console.log("✅ Payment updated to captured");
+     
 
         // Deduct stock
         for (const item of order.items) {
@@ -171,18 +164,15 @@ const verifyPayment = async (req, res) => {
                 const oldStock = product.stock;
                 product.stock -= item.quantity;
                 await product.save();
-                console.log(`📦 Stock deducted for ${product.name}: ${oldStock} → ${product.stock}`);
+             
             }
         }
 
-        // Keep order status as Pending - admin will update it later
-        // order.status remains "Pending"
-        console.log("✅ Order remains in Pending status - awaiting admin confirmation");
-
+  
         // Clear cart
         await Cart.findOneAndDelete({ user: userId });
 
-        console.log("🛒 Cart cleared");
+
 
         res.status(200).json({
             success: true,

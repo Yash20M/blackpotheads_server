@@ -90,15 +90,7 @@ app.get("/api/v1/health", (req, res) => {
     });
 });
 
-// Test endpoint for offers (temporary debugging)
-app.get("/api/v1/test-offers", (req, res) => {
-    console.log("🧪 Test offers endpoint hit - NO AUTH");
-    res.status(200).json({
-        success: true,
-        message: "Test endpoint works without auth",
-        note: "If this works but /api/v1/offers/active doesn't, there's a route conflict"
-    });
-});
+
 
 app.use("/api/v1", authRoutes)
 app.use("/api/v1", userRoutes)
@@ -106,7 +98,7 @@ app.use("/api/v1", productRoutes)
 app.use("/api/v1/wishlist", wishlistRoutes)
 app.use("/api/v1/cart", cartRoutes)
 app.use("/api/admin", adminRoutes)
-console.log("🎯 Mounting offer routes at /api/v1 (BEFORE order routes)");
+
 app.use("/api/v1", offerRoutes)  // Move offers BEFORE orders
 app.use("/api/v1", orderRoutes)
 app.use("/api/v1/reviews", reviewRoutes)

@@ -1,6 +1,7 @@
 
 import Product, { TSHIRT_CATEGORIES } from "../models/Product.js";
 import { uploadFileToCloudinary } from "../utils/utility.js";
+import Wishlist from "../models/wishlist.js";
 
 const createProducts = async (req, res) => {
     try {
@@ -62,6 +63,7 @@ const getProducts = async (req, res) => {
     try {
         let { page = 1, limit = 10 } = req.query;
         const { category } = req.params;
+        const userId = req.user?._id; // Get authenticated user ID (optional)
 
         // Validate category if provided
         if (category && !Object.values(TSHIRT_CATEGORIES).includes(category)) {
@@ -83,10 +85,20 @@ const getProducts = async (req, res) => {
             .limit(limit)
             .sort({ createdAt: -1 });
 
-        // Map to only return image URLs for each product
+        // Get user's wishlist if authenticated
+        let wishlistProductIds = [];
+        if (userId) {
+            const wishlist = await Wishlist.findOne({ userId });
+            if (wishlist) {
+                wishlistProductIds = wishlist.products.map(item => item.product.toString());
+            }
+        }
+
+        // Map to only return image URLs and add in_wishlist field
         const formattedProducts = products.map(product => ({
             ...product.toObject(),
-            images: product.images.map(img => img.url)
+            images: product.images.map(img => img.url),
+            in_wishlist: userId ? wishlistProductIds.includes(product._id.toString()) : false
         }));
 
         res.status(200).json({
@@ -110,14 +122,25 @@ const getFeaturedProducts = async (req, res) => {
     try {
         let { limit = 10 } = req.query;
         limit = Number.isNaN(parseInt(limit, 10)) ? 10 : parseInt(limit, 10);
+        const userId = req.user?._id; // Get authenticated user ID (optional)
 
         const featuredProducts = await Product.find({ isFeatured: true })
             .limit(limit)
             .sort({ createdAt: -1 });
 
+        // Get user's wishlist if authenticated
+        let wishlistProductIds = [];
+        if (userId) {
+            const wishlist = await Wishlist.findOne({ userId });
+            if (wishlist) {
+                wishlistProductIds = wishlist.products.map(item => item.product.toString());
+            }
+        }
+
         const formattedProducts = featuredProducts.map(product => ({
             ...product.toObject(),
-            images: product.images.map(img => img.url)
+            images: product.images.map(img => img.url),
+            in_wishlist: userId ? wishlistProductIds.includes(product._id.toString()) : false
         }));
 
         res.status(200).json({
@@ -137,6 +160,7 @@ const getFeaturedProducts = async (req, res) => {
 const getProductById = async (req, res) => {
     try {
         const { id } = req.params;
+        const userId = req.user?._id; // Get authenticated user ID (optional)
 
         const product = await Product.findById(id);
         if (!product) {
@@ -146,10 +170,20 @@ const getProductById = async (req, res) => {
             });
         }
 
-        // Format product to include only image URLs
+        // Check if product is in user's wishlist
+        let inWishlist = false;
+        if (userId) {
+            const wishlist = await Wishlist.findOne({ userId });
+            if (wishlist) {
+                inWishlist = wishlist.products.some(item => item.product.toString() === product._id.toString());
+            }
+        }
+
+        // Format product to include only image URLs and in_wishlist field
         const formattedProduct = {
             ...product.toObject(),
-            images: product.images.map(img => img.url)
+            images: product.images.map(img => img.url),
+            in_wishlist: inWishlist
         };
 
         res.status(200).json({
@@ -169,6 +203,7 @@ const getProductById = async (req, res) => {
 const getAllProducts = async (req, res) => {
     try {
         let { page = 1, limit = 10 } = req.query;
+        const userId = req.user?._id; // Get authenticated user ID (optional)
 
         page = parseInt(page);
         limit = parseInt(limit);
@@ -181,10 +216,20 @@ const getAllProducts = async (req, res) => {
             .limit(limit)
             .sort({ createdAt: -1 });
 
-        // Map to only return image URLs for each product
+        // Get user's wishlist if authenticated
+        let wishlistProductIds = [];
+        if (userId) {
+            const wishlist = await Wishlist.findOne({ userId });
+            if (wishlist) {
+                wishlistProductIds = wishlist.products.map(item => item.product.toString());
+            }
+        }
+
+        // Map to only return image URLs and add in_wishlist field
         const formattedProducts = products.map(product => ({
             ...product.toObject(),
-            images: product.images.map(img => img.url)
+            images: product.images.map(img => img.url),
+            in_wishlist: userId ? wishlistProductIds.includes(product._id.toString()) : false
         }));
 
         res.status(200).json({
