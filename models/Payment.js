@@ -40,6 +40,12 @@ const paymentSchema = new mongoose.Schema({
     enum: ["created", "processed"],
     default: null
   },
+  refundAmount: {
+    type: Number
+  },
+  refundReason: {
+    type: String
+  },
   createdAt: {
     type: Date,
     default: Date.now

@@ -6,6 +6,7 @@ import Order from "../models/order.js";
 import Payment from "../models/Payment.js";
 import mongoose from "mongoose";
 import { uploadFileToCloudinary } from "../utils/utility.js";
+import { processRefund } from "../utils/razorpay.js";
 
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -600,7 +601,8 @@ export {
   getAllPayments,
   getPaymentById,
   getPaymentStatistics,
-  cleanupAbandonedOrders
+  cleanupAbandonedOrders,
+  initiateRefund
 };
 
 
@@ -826,6 +828,163 @@ const cleanupAbandonedOrders = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to cleanup abandoned orders",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Initiate refund for an order (Admin only)
+ * Supports both full and partial refunds
+ */
+const initiateRefund = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { amount, reason } = req.body;
+
+    console.log("🔄 Initiating refund for order:", orderId);
+
+    // 1. Fetch order from database
+    const order = await Order.findById(orderId).populate('items.product');
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    console.log("📦 Order found:", {
+      orderId: order._id,
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      totalAmount: order.totalAmount
+    });
+
+    // 2. Ensure order payment method is Online
+    if (order.paymentMethod !== "Online") {
+      return res.status(400).json({
+        success: false,
+        message: "Only online payments can be refunded. This is a COD order."
+      });
+    }
+
+    // 3. Fetch payment record
+    const payment = await Payment.findOne({ orderId: order._id });
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: "Payment record not found for this order"
+      });
+    }
+
+    console.log("💳 Payment found:", {
+      paymentId: payment._id,
+      razorpayPaymentId: payment.razorpayPaymentId,
+      status: payment.status,
+      amount: payment.amount
+    });
+
+    // 4. Ensure order status is PAID (captured)
+    if (payment.status !== "captured" && payment.status !== "authorized") {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot refund. Payment status is: ${payment.status}. Only captured/authorized payments can be refunded.`
+      });
+    }
+
+    // 5. Ensure refund is not already processed
+    if (payment.status === "refunded" || payment.refundStatus === "processed") {
+      return res.status(400).json({
+        success: false,
+        message: "Refund has already been processed for this order"
+      });
+    }
+
+    // Check if refund is already in progress
+    if (payment.refundStatus === "created") {
+      return res.status(400).json({
+        success: false,
+        message: "Refund is already in progress for this order"
+      });
+    }
+
+    // 6. Validate refund amount
+    const refundAmount = amount ? parseFloat(amount) : payment.amount;
+    
+    if (refundAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Refund amount must be greater than 0"
+      });
+    }
+
+    if (refundAmount > payment.amount) {
+      return res.status(400).json({
+        success: false,
+        message: `Refund amount (₹${refundAmount}) cannot exceed payment amount (₹${payment.amount})`
+      });
+    }
+
+    const isPartialRefund = refundAmount < payment.amount;
+
+    console.log("💰 Refund details:", {
+      requestedAmount: refundAmount,
+      paymentAmount: payment.amount,
+      isPartialRefund,
+      amountInPaise: Math.round(refundAmount * 100)
+    });
+
+    // 7. Call Razorpay Refund API
+    const refundData = await processRefund(
+      payment.razorpayPaymentId,
+      Math.round(refundAmount * 100), // Convert to paise
+      {
+        orderId: order._id.toString(),
+        reason: reason || "Refund initiated by admin",
+        adminId: req.admin._id.toString()
+      }
+    );
+
+    console.log("✅ Razorpay refund created:", {
+      refundId: refundData.id,
+      amount: refundData.amount,
+      status: refundData.status
+    });
+
+    // 8. Store refundId in database
+    payment.refundId = refundData.id;
+    payment.refundStatus = "created";
+    payment.refundAmount = refundAmount;
+    payment.refundReason = reason || "Refund initiated by admin";
+    await payment.save();
+
+    console.log("💾 Payment record updated with refund details");
+
+    // Note: Order status will be updated to "Refunded" by webhook when refund.processed event is received
+    // Stock will also be restored by the webhook handler
+
+    res.status(200).json({
+      success: true,
+      message: isPartialRefund 
+        ? `Partial refund of ₹${refundAmount} initiated successfully. Webhook will update order status when processed.`
+        : `Full refund of ₹${refundAmount} initiated successfully. Webhook will update order status when processed.`,
+      refund: {
+        refundId: refundData.id,
+        orderId: order._id,
+        amount: refundAmount,
+        currency: payment.currency,
+        status: refundData.status,
+        isPartialRefund,
+        razorpayRefundId: refundData.id
+      },
+      note: "Order status will be updated to 'Refunded' automatically when Razorpay processes the refund"
+    });
+
+  } catch (error) {
+    console.error("❌ Refund initiation failed:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to initiate refund",
       error: error.message
     });
   }

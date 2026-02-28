@@ -14,7 +14,8 @@ import {
   getAllPayments,
   getPaymentById,
   getPaymentStatistics,
-  cleanupAbandonedOrders
+  cleanupAbandonedOrders,
+  initiateRefund
 } from "../controllers/admin-controller.js";
 import {
   getInventoryOverview,
@@ -77,6 +78,9 @@ router.put("/inventory/bulk-update-stock", adminMiddleware, bulkUpdateStock);
 router.get("/payments", adminMiddleware, getAllPayments);
 router.get("/payments/:paymentId", adminMiddleware, getPaymentById);
 router.get("/payment-statistics", adminMiddleware, getPaymentStatistics);
+
+// Refund management route
+router.post("/orders/:orderId/refund", adminMiddleware, initiateRefund);
 
 // Offer management routes
 router.post("/offers", adminMiddleware, uploadSingle, createOffer);
