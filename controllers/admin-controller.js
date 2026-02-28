@@ -187,9 +187,54 @@ const updateproduct = async (req, res) => {
 };
 
 const deleteproduct = async (req, res) => {
-  const { id } = req.params;
-  await Product.findByIdAndDelete(id);
-  res.status(200).json({ success: true, message: "Product deleted successfully" });
+  try {
+    const { id } = req.params;
+
+    // Check if product exists
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ 
+        success: false, 
+        message: "Product not found" 
+      });
+    }
+
+    // Check if product has active orders (not Delivered, Cancelled, or Refunded)
+    const activeOrderStatuses = ["Pending", "Processing", "Shipped", "Out for Delivery"];
+    
+    const activeOrders = await Order.find({
+      "items.product": id,
+      status: { $in: activeOrderStatuses }
+    }).select('_id status createdAt');
+
+    if (activeOrders.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete product. It has ${activeOrders.length} active order(s) that are not yet delivered or cancelled.`,
+        activeOrders: activeOrders.map(order => ({
+          orderId: order._id,
+          status: order.status,
+          createdAt: order.createdAt
+        })),
+        hint: "You can only delete products that have no active orders, or orders that are Delivered, Cancelled, or Refunded."
+      });
+    }
+
+    // Safe to delete - no active orders
+    await Product.findByIdAndDelete(id);
+    
+    res.status(200).json({ 
+      success: true, 
+      message: "Product deleted successfully" 
+    });
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete product",
+      error: error.message
+    });
+  }
 };
 
 const getAllOrders = async (req, res) => {
@@ -344,9 +389,14 @@ const getAllOrders = async (req, res) => {
     res.status(200).json({
       success: true,
       orders: ordersWithPayments,
-      currentPage: page,
-      totalPages: Math.ceil(totalOrders / limit),
-      totalOrders,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalOrders / limit),
+        totalOrders,
+        limit: parseInt(limit),
+        hasNextPage: page < Math.ceil(totalOrders / limit),
+        hasPrevPage: page > 1
+      },
       appliedFilters: {
         search,
         filter,

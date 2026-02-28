@@ -54,31 +54,37 @@ const getWishlist = async (req, res) => {
         const userId = req.user._id;
         const { category } = req.query;
 
-        // Find wishlist and populate product details
-        const wishlist = await Wishlist.findOne({ userId }).populate("products.product");
-
-        if (!wishlist) {
-            return res.status(404).json({ message: "Wishlist not found" });
-        }
+        // Find wishlist or create if not exists
+        const wishlist = await Wishlist.findOneAndUpdate(
+            { userId },
+            { $setOnInsert: { userId, products: [] } },
+            { new: true, upsert: true }
+        ).populate("products.product");
 
         // Filter by category if provided
         let filteredProducts = wishlist.products;
+
         if (category) {
-            filteredProducts = wishlist.products.filter(item => item.category === category);
+            filteredProducts = wishlist.products.filter(
+                item => item.category === category
+            );
         }
 
         // Get total cart item count
         const userCart = await Cart.find({ user: userId });
-        const totalCartCount = userCart.reduce((sum, cart) => sum + cart.items.length, 0);
+        const totalCartCount = userCart.reduce(
+            (sum, cart) => sum + cart.items.length,
+            0
+        );
 
-        // Format products to return only image URLs
+        // Format products
         const formattedProducts = filteredProducts.map(item => ({
-            ...item.product.toObject(),
+            ...item.product?.toObject(),
             category: item.category,
-            images: item.product?.images?.map(img => img.url)
+            images: item.product?.images?.map(img => img.url) || []
         }));
 
-        // Final formatted response
+        // Final response
         const formattedWishlist = {
             _id: wishlist._id,
             userId: wishlist.userId,
@@ -90,30 +96,38 @@ const getWishlist = async (req, res) => {
 
     } catch (error) {
         console.error("Error in getWishlist:", error);
-        res.status(500).json({ message: "Internal Server Error", error: error.message });
+        res.status(500).json({
+            message: "Internal Server Error",
+            error: error.message
+        });
     }
 };
-
 
 
 const removeFromWishlist = async (req, res) => {
     try {
         const { productId } = req.params;
         const userId = req.user._id;
-        
-        const wishlist = await Wishlist.findOne({ userId });
-        if (!wishlist) {
-            return res.status(404).json({ message: "Wishlist not found" });
-        }
-        
-        wishlist.products = wishlist.products.filter(item => item.product.toString() !== productId);
 
-        await wishlist.save();
-        return res.status(200).json({ message: "Product removed from wishlist" });
+        // Remove product directly using $pull
+        const updatedWishlist = await Wishlist.findOneAndUpdate(
+            { userId },
+            { $pull: { products: { product: productId } } },
+            { new: true, upsert: true }  // create empty wishlist if not exists
+        );
+
+        return res.status(200).json({
+            message: "Product removed from wishlist",
+            wishlistId: updatedWishlist._id
+        });
+
     } catch (error) {
         console.error("Error in removeFromWishlist:", error);
-        res.status(500).json({ message: "Internal Server Error", error: error.message });
+        res.status(500).json({
+            message: "Internal Server Error",
+            error: error.message
+        });
     }
-}
+};
 
 export { addToWishlist, getWishlist, removeFromWishlist };
