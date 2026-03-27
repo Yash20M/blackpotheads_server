@@ -4,7 +4,7 @@ import mongoose, { Schema } from "mongoose";
 const TSHIRT_CATEGORIES = {
     SHIVA: "Shiva",
     SHROOMS: "Shrooms",
-    LSD: "LSD",
+    ACID: "ACID",
     CHAKRAS: "Chakras",
     DARK: "Dark",
     RICK_N_MORTY: "Rick n Morty"

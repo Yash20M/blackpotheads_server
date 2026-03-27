@@ -18,6 +18,12 @@ import {
   initiateRefund
 } from "../controllers/admin-controller.js";
 import {
+  uploadFeaturedVideo,
+  getVideoForAdmin,
+  toggleVideoStatus,
+  deleteFeaturedVideo
+} from "../controllers/video-controller.js";
+import {
   getInventoryOverview,
   updateProductStock,
   bulkUpdateStock,
@@ -41,7 +47,7 @@ import {
   adminDeleteReview
 } from "../controllers/review-controller.js";
 import { adminMiddleware } from "../middlewares/auth-middleware.js";
-import { uploadMultiple, uploadProductImages, uploadSingle } from "../middlewares/multer.js";
+import { uploadMultiple, uploadProductImages, uploadSingle, uploadVideo } from "../middlewares/multer.js";
 import { createProducts } from "../controllers/product-controller.js";
 
 const router = Router();
@@ -92,5 +98,11 @@ router.patch("/offers/:offerId/toggle", adminMiddleware, toggleOfferStatus);
 // Review management routes
 router.get("/reviews", adminMiddleware, adminGetAllReviews);
 router.delete("/reviews/:reviewId", adminMiddleware, adminDeleteReview);
+
+// Video management routes
+router.post("/video/upload", adminMiddleware, uploadVideo, uploadFeaturedVideo);
+router.get("/video", adminMiddleware, getVideoForAdmin);
+router.patch("/video/toggle-status", adminMiddleware, toggleVideoStatus);
+router.delete("/video", adminMiddleware, deleteFeaturedVideo);
 
 export default router;

@@ -1,5 +1,5 @@
-import User from "../models/user.js";
 import jwt from "jsonwebtoken";
+import User from "../models/user.js";
 
 const authMiddleware = async (req, res, next) => {
     try {
@@ -31,11 +31,13 @@ const authMiddleware = async (req, res, next) => {
 };
 
 const adminMiddleware = async (req, res, next) => {
+    
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
             return res.status(401).json({ success: false, message: "Unauthorized - No token provided" });
         }
+        console.log("auth header",authHeader)
 
         const token = authHeader.split(" ")[1];
         if (!token) {
@@ -44,12 +46,15 @@ const adminMiddleware = async (req, res, next) => {
 
         const decoded = jwt.verify(token, process.env.ADMIN_SECRET);
      
-        
+            console.log("decoded", decoded)
+
         const user = await User.findById(decoded.id);
         if (!user) {
             console.log("❌ User not found for ID:", decoded.id);
             return res.status(401).json({ success: false, message: "Unauthorized - User not found" });
         }
+
+        console.log("user", user)
         
         if (!user.isAdmin) {
             console.log("❌ User is not admin:", user.email);
@@ -105,4 +110,4 @@ const optionalAuthMiddleware = async (req, res, next) => {
 };
 
 
-export { authMiddleware, adminMiddleware, optionalAuthMiddleware };
+export { adminMiddleware, authMiddleware, optionalAuthMiddleware };

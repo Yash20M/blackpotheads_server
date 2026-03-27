@@ -9,6 +9,19 @@ const storage = multer.memoryStorage()
 // For single image upload
 const uploadSingle = multer({ storage: storage }).single("image");
 
+// For single video upload
+const uploadVideo = multer({ 
+    storage: storage,
+    fileFilter: function (req, file, cb) {
+        // Accept only video files
+        if (file.mimetype.startsWith('video/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only video files are allowed'), false);
+        }
+    }
+}).single("video");
+
 // For multiple images upload
 const uploadMultiple = multer({ storage: storage }).array("images", 10);
 
@@ -81,4 +94,4 @@ const uploadProductImages = multer({
 // For QR image upload (single image)
 const uploadQR = multer({ storage: storage }).single("qrImage");
 
-export { uploadSingle, uploadMultiple, uploadProductImages, uploadQR };
+export { uploadSingle, uploadVideo, uploadMultiple, uploadProductImages, uploadQR };

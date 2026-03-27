@@ -2,7 +2,7 @@
 export const TSHIRT_CATEGORIES = {
     SHIVA: "Shiva",
     SHROOMS: "Shrooms",
-    LSD: "LSD",
+    ACID: "ACID",
     CHAKRAS: "Chakras",
     DARK: "Dark",
     RICK_N_MORTY: "Rick n Morty"
@@ -170,28 +170,28 @@ export const products = [
         "isFeatured": true
     },
 
-    // ========== LSD CATEGORY (6 products) ==========
+    // ========== ACID CATEGORY (6 products) ==========
     {
-        "name": "Fractal LSD T-Shirt",
-        "category": TSHIRT_CATEGORIES.LSD,
+        "name": "Fractal ACID T-Shirt",
+        "category": TSHIRT_CATEGORIES.ACID,
         "sizes": ["S", "M", "L", "XL"],
         "price": 899,
         "images": [
-            "https://example.com/images/fractal-lsd-1.jpg",
-            "https://example.com/images/fractal-lsd-2.jpg"
+            "https://example.com/images/fractal-acid-1.jpg",
+            "https://example.com/images/fractal-acid-2.jpg"
         ],
         "description": "Mind-bending fractal patterns in vibrant colors. Perfect for festival season.",
         "stock": 52,
         "isFeatured": true
     },
     {
-        "name": "LSD Trip Abstract T-Shirt",
-        "category": TSHIRT_CATEGORIES.LSD,
+        "name": "ACID Trip Abstract T-Shirt",
+        "category": TSHIRT_CATEGORIES.ACID,
         "sizes": ["S", "M", "L", "XL"],
         "price": 849,
         "images": [
-            "https://example.com/images/lsd-abstract-1.jpg",
-            "https://example.com/images/lsd-abstract-2.jpg"
+            "https://example.com/images/acid-abstract-1.jpg",
+            "https://example.com/images/acid-abstract-2.jpg"
         ],
         "description": "Trippy abstract design inspired by psychedelic art. Comfortable and breathable fabric.",
         "stock": 45,
@@ -199,7 +199,7 @@ export const products = [
     },
     {
         "name": "Kaleidoscope Vision T-Shirt",
-        "category": TSHIRT_CATEGORIES.LSD,
+        "category": TSHIRT_CATEGORIES.ACID,
         "sizes": ["S", "M", "L", "XL"],
         "price": 899,
         "images": [
@@ -212,7 +212,7 @@ export const products = [
     },
     {
         "name": "Psychedelic Eye T-Shirt",
-        "category": TSHIRT_CATEGORIES.LSD,
+        "category": TSHIRT_CATEGORIES.ACID,
         "sizes": ["S", "M", "L", "XL"],
         "price": 849,
         "images": [
@@ -225,7 +225,7 @@ export const products = [
     },
     {
         "name": "Melting Reality T-Shirt",
-        "category": TSHIRT_CATEGORIES.LSD,
+        "category": TSHIRT_CATEGORIES.ACID,
         "sizes": ["S", "M", "L", "XL"],
         "price": 899,
         "images": [
@@ -238,7 +238,7 @@ export const products = [
     },
     {
         "name": "Cosmic Waves T-Shirt",
-        "category": TSHIRT_CATEGORIES.LSD,
+        "category": TSHIRT_CATEGORIES.ACID,
         "sizes": ["S", "M", "L", "XL"],
         "price": 799,
         "images": [

@@ -13,6 +13,7 @@ import cartRoutes from "./routes/cart-routes.js";
 import webhookRoutes from "./routes/webhook-routes.js";
 import offerRoutes from "./routes/offer-routes.js";
 import reviewRoutes from "./routes/review-routes.js";
+import videoRoutes from "./routes/video-routes.js";
 import { startScheduledJobs } from "./utils/scheduledJobs.js";
 dotenv.config();
 
@@ -92,6 +93,7 @@ app.get("/api/v1/health", (req, res) => {
 
 
 
+app.use("/api/v1/video", videoRoutes)  // Video routes FIRST (public access)
 app.use("/api/v1", authRoutes)
 app.use("/api/v1", userRoutes)
 app.use("/api/v1", productRoutes)

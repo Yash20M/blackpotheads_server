@@ -33,7 +33,7 @@ const seedDatabase = async () => {
 
         // Display summary by category
         console.log("\n📊 Products by Category:");
-        const categories = ["Shiva", "Shrooms", "LSD", "Chakras", "Dark", "Rick n Morty"];
+        const categories = ["Shiva", "Shrooms", "ACID", "Chakras", "Dark", "Rick n Morty"];
         
         for (const category of categories) {
             const count = await Product.countDocuments({ category });
