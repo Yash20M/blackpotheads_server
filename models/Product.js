@@ -11,7 +11,7 @@ const TSHIRT_CATEGORIES = {
 };
 
 // T-shirt sizes
-const TSHIRT_SIZES = ["S", "M", "L", "XL"];
+const TSHIRT_SIZES = ["S", "M", "L", "XL", "XXL"];
 
 const productSchema = new Schema({
     name: {

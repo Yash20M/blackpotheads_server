@@ -283,7 +283,12 @@ const getAllOrders = async (req, res) => {
           as: "user",
         },
       },
-      { $unwind: "$user" },
+      {
+        $unwind: {
+          path: "$user",
+          preserveNullAndEmptyArrays: true // Allow guest orders without user
+        }
+      },
       {
         $lookup: {
           from: "products",
@@ -325,6 +330,9 @@ const getAllOrders = async (req, res) => {
           $or: [
             { "user.name": { $regex: search, $options: "i" } },
             { "user.email": { $regex: search, $options: "i" } },
+            { "guestInfo.name": { $regex: search, $options: "i" } },
+            { "guestInfo.email": { $regex: search, $options: "i" } },
+            { "guestInfo.phone": { $regex: search, $options: "i" } },
             { "items.product.name": { $regex: search, $options: "i" } },
             { "items.category": { $regex: search, $options: "i" } },
             { "status": { $regex: search, $options: "i" } },

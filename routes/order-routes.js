@@ -11,13 +11,27 @@ import {
     getUserPayments,
     cancelPendingOrder,
     debugGetAllPayments,
-    debugGetOrderWithPayment
+    debugGetOrderWithPayment,
+    // Guest order functions
+    createGuestOrder,
+    trackGuestOrder,
+    getGuestOrderById,
+    // Guest payment functions
+    createGuestRazorpayOrder,
+    verifyGuestPayment
 } from "../controllers/order-controller.js";
 import { authMiddleware } from "../middlewares/auth-middleware.js";
 
 const router = Router();
 
-// Apply auth middleware to all order routes
+// Guest order routes (NO authentication required)
+router.post("/orders/guest/create", createGuestOrder); // COD only
+router.post("/orders/guest/create-razorpay-order", createGuestRazorpayOrder); // Online payment
+router.post("/orders/guest/verify-payment", verifyGuestPayment); // Verify online payment
+router.post("/orders/guest/track", trackGuestOrder);
+router.get("/orders/guest/:orderId", getGuestOrderById);
+
+// Apply auth middleware to authenticated order routes
 router.use(authMiddleware);
 
 // Payment routes

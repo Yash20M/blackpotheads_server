@@ -602,6 +602,552 @@ const getUserPayments = async (req, res) => {
     }
 };
 
+/**
+ * Create guest order (COD for guests)
+ */
+const createGuestOrder = async (req, res) => {
+    try {
+        const { items, totalAmount, address, guestInfo, paymentMethod } = req.body;
+
+        // Validate guest info
+        if (!guestInfo || !guestInfo.email || !guestInfo.phone || !guestInfo.name) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Guest name, email, and phone number are required" 
+            });
+        }
+
+        // Validate email format
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestInfo.email)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please provide a valid email address" 
+            });
+        }
+
+        // Validate phone format (10 digits)
+        if (!/^[0-9]{10}$/.test(guestInfo.phone)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please provide a valid 10-digit phone number" 
+            });
+        }
+
+        // Only allow COD for guest orders (online payment via separate endpoint)
+        if (paymentMethod !== "COD") {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Use /orders/guest/create-razorpay-order for online payments" 
+            });
+        }
+
+        // Validate items
+        if (!items || items.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Order must contain at least one item" 
+            });
+        }
+
+        // Validate address
+        if (!address || !address.line1 || !address.city || !address.state || !address.pincode) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Complete address is required" 
+            });
+        }
+
+        // Check stock availability and calculate total
+        let calculatedTotal = 0;
+        const orderItems = [];
+
+        for (const item of items) {
+            const product = await Product.findById(item.product);
+            
+            if (!product) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: `Product not found: ${item.product}` 
+                });
+            }
+
+            if (product.stock < item.quantity) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}` 
+                });
+            }
+
+            // Use product's current price
+            const itemPrice = product.price;
+            calculatedTotal += itemPrice * item.quantity;
+
+            orderItems.push({
+                product: product._id,
+                category: item.category,
+                size: item.size,
+                quantity: item.quantity,
+                price: itemPrice
+            });
+
+            // Deduct stock
+            product.stock -= item.quantity;
+            await product.save();
+        }
+
+        // Verify total amount
+        if (Math.abs(calculatedTotal - totalAmount) > 0.01) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Total amount mismatch" 
+            });
+        }
+
+        // Create guest order
+        const order = new Order({
+            isGuestOrder: true,
+            guestInfo: {
+                name: guestInfo.name,
+                email: guestInfo.email,
+                phone: guestInfo.phone
+            },
+            items: orderItems,
+            totalAmount,
+            address,
+            paymentMethod: "COD",
+            status: "Pending"
+        });
+
+        await order.save();
+
+        res.status(201).json({ 
+            success: true, 
+            message: "Guest order created successfully", 
+            order: {
+                _id: order._id,
+                orderNumber: order._id,
+                guestInfo: order.guestInfo,
+                items: order.items,
+                totalAmount: order.totalAmount,
+                address: order.address,
+                status: order.status,
+                paymentMethod: order.paymentMethod,
+                createdAt: order.createdAt
+            },
+            trackingInfo: {
+                message: "Save your order ID to track your order",
+                orderId: order._id,
+                email: guestInfo.email,
+                phone: guestInfo.phone
+            }
+        });
+    } catch (err) {
+        console.error("Guest order creation failed:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to create order", 
+            error: err.message 
+        });
+    }
+};
+
+/**
+ * Track guest order by order ID and email/phone
+ */
+const trackGuestOrder = async (req, res) => {
+    try {
+        const { orderId, email, phone } = req.body;
+
+        if (!orderId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Order ID is required" 
+            });
+        }
+
+        if (!email && !phone) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Either email or phone number is required" 
+            });
+        }
+
+        // Find order
+        const order = await Order.findById(orderId).populate('items.product');
+
+        if (!order) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Order not found" 
+            });
+        }
+
+        // Verify it's a guest order
+        if (!order.isGuestOrder) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "This is not a guest order. Please login to track your order." 
+            });
+        }
+
+        // Verify email or phone matches
+        const emailMatches = email && order.guestInfo.email.toLowerCase() === email.toLowerCase();
+        const phoneMatches = phone && order.guestInfo.phone === phone;
+
+        if (!emailMatches && !phoneMatches) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Email or phone number does not match order records" 
+            });
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            order: {
+                _id: order._id,
+                orderNumber: order._id,
+                guestInfo: order.guestInfo,
+                items: order.items,
+                totalAmount: order.totalAmount,
+                address: order.address,
+                status: order.status,
+                paymentMethod: order.paymentMethod,
+                createdAt: order.createdAt
+            }
+        });
+    } catch (err) {
+        console.error("Guest order tracking failed:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to track order", 
+            error: err.message 
+        });
+    }
+};
+
+/**
+ * Get guest order by ID (with email/phone verification)
+ */
+const getGuestOrderById = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { email, phone } = req.query;
+
+        if (!email && !phone) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Either email or phone number is required" 
+            });
+        }
+
+        const order = await Order.findById(orderId).populate('items.product');
+
+        if (!order) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Order not found" 
+            });
+        }
+
+        if (!order.isGuestOrder) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "This is not a guest order" 
+            });
+        }
+
+        // Verify email or phone matches
+        const emailMatches = email && order.guestInfo.email.toLowerCase() === email.toLowerCase();
+        const phoneMatches = phone && order.guestInfo.phone === phone;
+
+        if (!emailMatches && !phoneMatches) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Email or phone number does not match order records" 
+            });
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            order: {
+                _id: order._id,
+                orderNumber: order._id,
+                guestInfo: order.guestInfo,
+                items: order.items,
+                totalAmount: order.totalAmount,
+                address: order.address,
+                status: order.status,
+                paymentMethod: order.paymentMethod,
+                createdAt: order.createdAt
+            }
+        });
+    } catch (err) {
+        console.error("Get guest order failed:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to get order", 
+            error: err.message 
+        });
+    }
+};
+
+/**
+ * Create Razorpay order for guest (Step 1 - for online payment)
+ */
+const createGuestRazorpayOrder = async (req, res) => {
+    try {
+        const { items, totalAmount, address, guestInfo } = req.body;
+
+        // Validate guest info
+        if (!guestInfo || !guestInfo.email || !guestInfo.phone || !guestInfo.name) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Guest name, email, and phone number are required" 
+            });
+        }
+
+        // Validate email format
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestInfo.email)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please provide a valid email address" 
+            });
+        }
+
+        // Validate phone format (10 digits)
+        if (!/^[0-9]{10}$/.test(guestInfo.phone)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please provide a valid 10-digit phone number" 
+            });
+        }
+
+        // Validate items
+        if (!items || items.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Order must contain at least one item" 
+            });
+        }
+
+        // Validate address
+        if (!address || !address.line1 || !address.city || !address.state || !address.pincode) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Complete address is required" 
+            });
+        }
+
+        // Check stock availability and calculate total
+        let calculatedTotal = 0;
+        const orderItems = [];
+
+        for (const item of items) {
+            const product = await Product.findById(item.product);
+            
+            if (!product) {
+                return res.status(404).json({ 
+                    success: false, 
+                    message: `Product not found: ${item.product}` 
+                });
+            }
+
+            if (product.stock < item.quantity) {
+                return res.status(400).json({ 
+                    success: false, 
+                    message: `Insufficient stock for ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}` 
+                });
+            }
+
+            const itemPrice = product.price;
+            calculatedTotal += itemPrice * item.quantity;
+
+            orderItems.push({
+                product: product._id,
+                category: item.category,
+                size: item.size,
+                quantity: item.quantity,
+                price: itemPrice
+            });
+        }
+
+        // Verify total amount
+        if (Math.abs(calculatedTotal - totalAmount) > 0.01) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Total amount mismatch" 
+            });
+        }
+
+        // Create Razorpay order
+        const options = {
+            amount: totalAmount * 100, // Amount in paise
+            currency: "INR",
+            receipt: `guest_receipt_${Date.now()}`,
+            notes: {
+                guestEmail: guestInfo.email,
+                guestPhone: guestInfo.phone,
+                guestName: guestInfo.name,
+                isGuestOrder: "true"
+            }
+        };
+
+        const razorpayOrder = await razorpayInstance.orders.create(options);
+
+        // Create pending guest order in database
+        const order = new Order({
+            isGuestOrder: true,
+            guestInfo: {
+                name: guestInfo.name,
+                email: guestInfo.email,
+                phone: guestInfo.phone
+            },
+            items: orderItems,
+            totalAmount,
+            address,
+            paymentMethod: "Online",
+            status: "Pending"
+        });
+
+        await order.save();
+
+        // Create payment record
+        const payment = new Payment({
+            orderId: order._id,
+            razorpayOrderId: razorpayOrder.id,
+            amount: totalAmount,
+            currency: "INR",
+            status: "created"
+        });
+
+        await payment.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Razorpay order created for guest",
+            razorpayOrder: {
+                id: razorpayOrder.id,
+                amount: razorpayOrder.amount,
+                currency: razorpayOrder.currency
+            },
+            orderId: order._id,
+            key: process.env.RAZORPAY_API_KEY
+        });
+
+    } catch (err) {
+        console.error("Guest Razorpay order creation failed:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to create payment order", 
+            error: err.message 
+        });
+    }
+};
+
+/**
+ * Verify guest payment and complete order (Step 2 - after payment success)
+ */
+const verifyGuestPayment = async (req, res) => {
+    try {
+        const { razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId, guestInfo } = req.body;
+
+        // Validate guest info for verification
+        if (!guestInfo || (!guestInfo.email && !guestInfo.phone)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Guest email or phone is required for verification" 
+            });
+        }
+
+        // Verify signature
+        const isValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+
+        if (!isValid) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Invalid payment signature" 
+            });
+        }
+
+        // Find order and verify it's a guest order
+        const order = await Order.findById(orderId).populate('items.product');
+        
+        if (!order) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Order not found" 
+            });
+        }
+
+        if (!order.isGuestOrder) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "This is not a guest order" 
+            });
+        }
+
+        // Verify guest credentials
+        const emailMatches = guestInfo.email && order.guestInfo.email.toLowerCase() === guestInfo.email.toLowerCase();
+        const phoneMatches = guestInfo.phone && order.guestInfo.phone === guestInfo.phone;
+
+        if (!emailMatches && !phoneMatches) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Guest credentials do not match order records" 
+            });
+        }
+
+        // Find payment record
+        const payment = await Payment.findOne({ orderId, razorpayOrderId });
+
+        if (!payment) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "Payment record not found" 
+            });
+        }
+
+        // Update payment record
+        payment.razorpayPaymentId = razorpayPaymentId;
+        payment.razorpaySignature = razorpaySignature;
+        payment.status = "captured";
+        await payment.save();
+
+        // Deduct stock
+        for (const item of order.items) {
+            const product = await Product.findById(item.product._id);
+            if (product) {
+                product.stock -= item.quantity;
+                await product.save();
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Payment verified and guest order confirmed",
+            order: {
+                _id: order._id,
+                orderNumber: order._id,
+                guestInfo: order.guestInfo,
+                items: order.items,
+                totalAmount: order.totalAmount,
+                address: order.address,
+                status: order.status,
+                paymentMethod: order.paymentMethod,
+                createdAt: order.createdAt
+            }
+        });
+
+    } catch (err) {
+        console.error("Guest payment verification failed:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Payment verification failed", 
+            error: err.message 
+        });
+    }
+};
+
 export { 
     createOrder, 
     createRazorpayOrder, 
@@ -614,7 +1160,14 @@ export {
     getUserPayments,
     cancelPendingOrder,
     debugGetAllPayments,
-    debugGetOrderWithPayment
+    debugGetOrderWithPayment,
+    // Guest order functions
+    createGuestOrder,
+    trackGuestOrder,
+    getGuestOrderById,
+    // Guest payment functions
+    createGuestRazorpayOrder,
+    verifyGuestPayment
 };
 
 

@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import User from "../models/user.js";
+import Order from "../models/order.js";
 import { createToken } from "../utils/config.js";
 
 
@@ -35,10 +36,44 @@ const register = async (req, res) => {
         return res.status(400).json({ message: "User already exists" });
     }
 
-    await User.create({ name, email, password, phone });
+    const newUser = await User.create({ name, email, password, phone });
 
+    // Link guest orders to new user account
+    // Find all guest orders with matching email or phone
+    const guestOrders = await Order.find({
+        isGuestOrder: true,
+        $or: [
+            { 'guestInfo.email': email.toLowerCase() },
+            { 'guestInfo.phone': phone }
+        ]
+    });
 
-    res.status(201).json({ success: true, message: "User created successfully" });
+    // Update guest orders to link with new user
+    if (guestOrders.length > 0) {
+        await Order.updateMany(
+            {
+                isGuestOrder: true,
+                $or: [
+                    { 'guestInfo.email': email.toLowerCase() },
+                    { 'guestInfo.phone': phone }
+                ]
+            },
+            {
+                $set: {
+                    user: newUser._id,
+                    isGuestOrder: false
+                }
+            }
+        );
+
+        console.log(`✅ Linked ${guestOrders.length} guest order(s) to new user: ${email}`);
+    }
+
+    res.status(201).json({ 
+        success: true, 
+        message: "User created successfully",
+        linkedOrders: guestOrders.length
+    });
 };
 
 const login = async (req, res) => {

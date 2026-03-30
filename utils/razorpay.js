@@ -13,7 +13,7 @@ export const razorpayInstance = new Razorpay({
 // Verify Razorpay webhook signature
 export const verifyRazorpaySignature = (body, signature) => {
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
-  
+
   const expectedSignature = crypto
     .createHmac("sha256", webhookSecret)
     .update(JSON.stringify(body))
@@ -25,7 +25,7 @@ export const verifyRazorpaySignature = (body, signature) => {
 // Verify payment signature (for frontend verification)
 export const verifyPaymentSignature = (orderId, paymentId, signature) => {
   const body = orderId + "|" + paymentId;
-  
+
   const expectedSignature = crypto
     .createHmac("sha256", process.env.RAZORPAY_SECRET_KEY)
     .update(body)

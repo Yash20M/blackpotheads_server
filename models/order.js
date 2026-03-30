@@ -1,7 +1,17 @@
 import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }, // Made optional for guest checkout
+    
+    // Guest user information (required if user is not provided)
+    guestInfo: {
+        name: { type: String },
+        email: { type: String },
+        phone: { type: String }
+    },
+    
+    isGuestOrder: { type: Boolean, default: false },
+    
     items: [{
         product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
         category: { type: String, required: true },
@@ -28,6 +38,21 @@ const orderSchema = new mongoose.Schema({
         default: 'COD'
     },
     createdAt: { type: Date, default: Date.now }
+});
+
+// Validation: Either user OR guestInfo must be provided
+orderSchema.pre('validate', function(next) {
+    if (!this.user && !this.isGuestOrder) {
+        return next(new Error('Either user or guest information must be provided'));
+    }
+    
+    if (this.isGuestOrder) {
+        if (!this.guestInfo || !this.guestInfo.email || !this.guestInfo.phone) {
+            return next(new Error('Guest orders must include email and phone number'));
+        }
+    }
+    
+    next();
 });
 
 const Order = mongoose.model('Order', orderSchema);
