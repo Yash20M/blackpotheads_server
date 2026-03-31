@@ -826,6 +826,77 @@ const trackGuestOrder = async (req, res) => {
 };
 
 /**
+ * Track guest orders by email or phone (without order ID)
+ * Now also finds orders that were linked to user accounts
+ */
+const trackGuestOrdersByContact = async (req, res) => {
+    try {
+        const { email, phone } = req.body;
+
+        if (!email && !phone) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Either email or phone number is required" 
+            });
+        }
+
+        // Build query to find orders by guestInfo (includes both guest and linked orders)
+        const query = {};
+        
+        if (email && phone) {
+            // If both provided, match either
+            query.$or = [
+                { 'guestInfo.email': email.toLowerCase() },
+                { 'guestInfo.phone': phone }
+            ];
+        } else if (email) {
+            query['guestInfo.email'] = email.toLowerCase();
+        } else if (phone) {
+            query['guestInfo.phone'] = phone;
+        }
+
+        // Find all matching orders (both guest and linked orders)
+        const orders = await Order.find(query)
+            .populate('items.product')
+            .sort({ createdAt: -1 }); // Most recent first
+
+        if (orders.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "No orders found with this email or phone number" 
+            });
+        }
+
+        // Format orders for response
+        const formattedOrders = orders.map(order => ({
+            _id: order._id,
+            orderNumber: order._id,
+            guestInfo: order.guestInfo,
+            items: order.items,
+            totalAmount: order.totalAmount,
+            address: order.address,
+            status: order.status,
+            paymentMethod: order.paymentMethod,
+            createdAt: order.createdAt,
+            isLinkedToAccount: !order.isGuestOrder && order.user ? true : false
+        }));
+
+        res.status(200).json({ 
+            success: true,
+            count: orders.length,
+            orders: formattedOrders
+        });
+    } catch (err) {
+        console.error("Guest orders tracking failed:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to track orders", 
+            error: err.message 
+        });
+    }
+};
+
+/**
  * Get guest order by ID (with email/phone verification)
  */
 const getGuestOrderById = async (req, res) => {
@@ -1164,6 +1235,7 @@ export {
     // Guest order functions
     createGuestOrder,
     trackGuestOrder,
+    trackGuestOrdersByContact,
     getGuestOrderById,
     // Guest payment functions
     createGuestRazorpayOrder,

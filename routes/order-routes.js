@@ -15,6 +15,7 @@ import {
     // Guest order functions
     createGuestOrder,
     trackGuestOrder,
+    trackGuestOrdersByContact,
     getGuestOrderById,
     // Guest payment functions
     createGuestRazorpayOrder,
@@ -28,7 +29,8 @@ const router = Router();
 router.post("/orders/guest/create", createGuestOrder); // COD only
 router.post("/orders/guest/create-razorpay-order", createGuestRazorpayOrder); // Online payment
 router.post("/orders/guest/verify-payment", verifyGuestPayment); // Verify online payment
-router.post("/orders/guest/track", trackGuestOrder);
+router.post("/orders/guest/track", trackGuestOrder); // Track with order ID
+router.post("/orders/guest/track-by-contact", trackGuestOrdersByContact); // Track without order ID (NEW)
 router.get("/orders/guest/:orderId", getGuestOrderById);
 
 // Apply auth middleware to authenticated order routes
