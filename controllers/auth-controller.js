@@ -107,7 +107,91 @@ const login = async (req, res) => {
     res.status(200).json(response);
 };
 
+/**
+ * Forgot Password - Reset password using email and phone verification
+ */
+const forgotPassword = async (req, res) => {
+    try {
+        const { email, phone, newPassword, confirmPassword } = req.body;
+
+        // Validate required fields
+        if (!email || !phone || !newPassword || !confirmPassword) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "All fields are required" 
+            });
+        }
+
+        // Validate email format
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please enter a valid email address" 
+            });
+        }
+
+        // Validate phone format
+        if (!/^[0-9]{10}$/.test(phone)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please enter a valid 10-digit phone number" 
+            });
+        }
+
+        // Validate password length
+        if (newPassword.length < 8) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Password must be at least 8 characters long" 
+            });
+        }
+
+        // Check if passwords match
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Passwords do not match" 
+            });
+        }
+
+        // Find user by email
+        const user = await User.findOne({ email: email.toLowerCase() });
+
+        if (!user) {
+            return res.status(404).json({ 
+                success: false, 
+                message: "No account found with this email" 
+            });
+        }
+
+        // Verify phone number matches
+        if (user.phone !== phone) {
+            return res.status(403).json({ 
+                success: false, 
+                message: "Phone number does not match our records" 
+            });
+        }
+
+        // Update password (will be hashed by pre-save hook)
+        user.password = newPassword;
+        await user.save();
+
+        console.log(`✅ Password reset successful for user: ${email}`);
+
+        res.status(200).json({ 
+            success: true, 
+            message: "Password reset successful. You can now login with your new password." 
+        });
+
+    } catch (err) {
+        console.error("Password reset failed:", err);
+        res.status(500).json({ 
+            success: false, 
+            message: "Failed to reset password", 
+            error: err.message 
+        });
+    }
+};
 
 
-
-export { login, register };
+export { login, register, forgotPassword };
