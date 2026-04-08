@@ -1,42 +1,58 @@
 import Collab from "../models/Collab.js";
 
 /**
- * Submit collab form (Public endpoint)
+ * Submit "Join the Movement" form (Public endpoint - No login required)
  */
 const submitCollabForm = async (req, res) => {
     try {
-        const { name, email, phone, message } = req.body;
+        const { name, mobile, email, instagram, vision } = req.body;
 
         // Validate required fields
-        if (!name || !email || !phone || !message) {
+        if (!name || !mobile || !instagram || !vision) {
             return res.status(400).json({ 
                 success: false, 
-                message: "All fields are required" 
+                message: "Name, Mobile, Instagram, and Vision are required fields" 
             });
         }
 
-        // Validate email format
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        // Validate mobile format (10 digits)
+        if (!/^[0-9]{10}$/.test(mobile)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please enter a valid 10-digit mobile number" 
+            });
+        }
+
+        // Validate email format if provided
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             return res.status(400).json({ 
                 success: false, 
                 message: "Please enter a valid email address" 
             });
         }
 
-        // Validate phone format (10 digits)
-        if (!/^[0-9]{10}$/.test(phone)) {
+        // Validate vision length (max 100 words)
+        const wordCount = vision.trim().split(/\s+/).length;
+        if (wordCount > 100) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Please enter a valid 10-digit phone number" 
+                message: `Vision must be maximum 100 words. You have ${wordCount} words.` 
             });
+        }
+
+        // Validate Instagram handle format (remove @ if present)
+        let instagramHandle = instagram.trim();
+        if (instagramHandle.startsWith('@')) {
+            instagramHandle = instagramHandle.substring(1);
         }
 
         // Create collab submission
         const collab = new Collab({
             name,
-            email,
-            phone,
-            message,
+            mobile,
+            email: email || undefined,
+            instagram: instagramHandle,
+            vision,
             status: 'pending'
         });
 
@@ -44,26 +60,27 @@ const submitCollabForm = async (req, res) => {
 
         res.status(201).json({ 
             success: true, 
-            message: "Your collaboration request has been submitted successfully. We'll get back to you soon!",
+            message: "Thank you for joining the movement! We'll get back to you soon.",
             submission: {
                 _id: collab._id,
                 name: collab.name,
-                email: collab.email,
+                mobile: collab.mobile,
+                instagram: collab.instagram,
                 createdAt: collab.createdAt
             }
         });
     } catch (err) {
-        console.error("Collab submission failed:", err);
+        console.error("Join the Movement submission failed:", err);
         res.status(500).json({ 
             success: false, 
-            message: "Failed to submit collaboration request", 
+            message: "Failed to submit your request. Please try again.", 
             error: err.message 
         });
     }
 };
 
 /**
- * Get all collab submissions (Admin only)
+ * Get all submissions (Admin only)
  */
 const getAllCollabs = async (req, res) => {
     try {
@@ -86,12 +103,13 @@ const getAllCollabs = async (req, res) => {
             query.status = status;
         }
 
-        // Search by name, email, or phone
+        // Search by name, mobile, email, or instagram
         if (search) {
             query.$or = [
                 { name: { $regex: search, $options: 'i' } },
+                { mobile: { $regex: search, $options: 'i' } },
                 { email: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } }
+                { instagram: { $regex: search, $options: 'i' } }
             ];
         }
 
@@ -144,17 +162,17 @@ const getAllCollabs = async (req, res) => {
             }
         });
     } catch (err) {
-        console.error("Get collabs failed:", err);
+        console.error("Get submissions failed:", err);
         res.status(500).json({ 
             success: false, 
-            message: "Failed to fetch collaboration requests", 
+            message: "Failed to fetch submissions", 
             error: err.message 
         });
     }
 };
 
 /**
- * Get single collab submission by ID (Admin only)
+ * Get single submission by ID (Admin only)
  */
 const getCollabById = async (req, res) => {
     try {
@@ -165,7 +183,7 @@ const getCollabById = async (req, res) => {
         if (!collab) {
             return res.status(404).json({ 
                 success: false, 
-                message: "Collaboration request not found" 
+                message: "Submission not found" 
             });
         }
 
@@ -174,17 +192,17 @@ const getCollabById = async (req, res) => {
             collab 
         });
     } catch (err) {
-        console.error("Get collab failed:", err);
+        console.error("Get submission failed:", err);
         res.status(500).json({ 
             success: false, 
-            message: "Failed to fetch collaboration request", 
+            message: "Failed to fetch submission", 
             error: err.message 
         });
     }
 };
 
 /**
- * Update collab submission status (Admin only)
+ * Update submission status (Admin only)
  */
 const updateCollabStatus = async (req, res) => {
     try {
@@ -209,7 +227,7 @@ const updateCollabStatus = async (req, res) => {
         if (!collab) {
             return res.status(404).json({ 
                 success: false, 
-                message: "Collaboration request not found" 
+                message: "Submission not found" 
             });
         }
 
@@ -219,7 +237,7 @@ const updateCollabStatus = async (req, res) => {
             collab 
         });
     } catch (err) {
-        console.error("Update collab status failed:", err);
+        console.error("Update status failed:", err);
         res.status(500).json({ 
             success: false, 
             message: "Failed to update status", 
@@ -229,7 +247,7 @@ const updateCollabStatus = async (req, res) => {
 };
 
 /**
- * Delete collab submission (Admin only)
+ * Delete submission (Admin only)
  */
 const deleteCollab = async (req, res) => {
     try {
@@ -240,19 +258,19 @@ const deleteCollab = async (req, res) => {
         if (!collab) {
             return res.status(404).json({ 
                 success: false, 
-                message: "Collaboration request not found" 
+                message: "Submission not found" 
             });
         }
 
         res.status(200).json({ 
             success: true, 
-            message: "Collaboration request deleted successfully" 
+            message: "Submission deleted successfully" 
         });
     } catch (err) {
-        console.error("Delete collab failed:", err);
+        console.error("Delete submission failed:", err);
         res.status(500).json({ 
             success: false, 
-            message: "Failed to delete collaboration request", 
+            message: "Failed to delete submission", 
             error: err.message 
         });
     }

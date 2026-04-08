@@ -6,20 +6,26 @@ const collabSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    email: {
-        type: String,
-        required: true,
-        trim: true,
-        lowercase: true
-    },
-    phone: {
+    mobile: {
         type: String,
         required: true,
         trim: true
     },
-    message: {
+    email: {
         type: String,
-        required: true
+        required: false,
+        trim: true,
+        lowercase: true
+    },
+    instagram: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    vision: {
+        type: String,
+        required: true,
+        maxlength: 100
     },
     status: {
         type: String,

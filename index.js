@@ -95,6 +95,7 @@ app.get("/api/v1/health", (req, res) => {
 
 
 app.use("/api/v1/video", videoRoutes)  // Video routes FIRST (public access)
+app.use("/api", collabRoutes)  // Collab routes (both /api/v1 and /api/admin) - BEFORE other routes
 app.use("/api/v1", authRoutes)
 app.use("/api/v1", userRoutes)
 app.use("/api/v1", productRoutes)
@@ -105,7 +106,6 @@ app.use("/api/admin", adminRoutes)
 app.use("/api/v1", offerRoutes)  // Move offers BEFORE orders
 app.use("/api/v1", orderRoutes)
 app.use("/api/v1/reviews", reviewRoutes)
-app.use("/api", collabRoutes)  // Collab routes (both /api/v1 and /api/admin)
 
 
 app.use(errorMiddleware);
