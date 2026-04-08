@@ -14,6 +14,7 @@ import webhookRoutes from "./routes/webhook-routes.js";
 import offerRoutes from "./routes/offer-routes.js";
 import reviewRoutes from "./routes/review-routes.js";
 import videoRoutes from "./routes/video-routes.js";
+import collabRoutes from "./routes/collab-routes.js";
 import { startScheduledJobs } from "./utils/scheduledJobs.js";
 dotenv.config();
 
@@ -104,6 +105,7 @@ app.use("/api/admin", adminRoutes)
 app.use("/api/v1", offerRoutes)  // Move offers BEFORE orders
 app.use("/api/v1", orderRoutes)
 app.use("/api/v1/reviews", reviewRoutes)
+app.use("/api", collabRoutes)  // Collab routes (both /api/v1 and /api/admin)
 
 
 app.use(errorMiddleware);
