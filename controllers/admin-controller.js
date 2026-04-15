@@ -129,8 +129,10 @@ const updateproduct = async (req, res) => {
       });
     }
 
-    const { name, price, description, category, sizes, stock, isFeatured } = req.body;
+    const { name, price, description, category, sizes, stock, isFeatured, collab } = req.body;
     const updateData = {};
+    
+    console.log('updateproduct body:', { name, price, category, collab, isFeatured });
     
     if (name) updateData.name = name;
     if (price) updateData.price = price;
@@ -155,6 +157,11 @@ const updateproduct = async (req, res) => {
     if (isFeatured !== undefined) {
       updateData.isFeatured = typeof isFeatured === 'boolean' ? isFeatured : 
                               isFeatured === 'true' || isFeatured === 'yes' || isFeatured === '1';
+    }
+
+    // collab: pass slug string like "rakt-pipasu-records" or null to remove
+    if (collab !== undefined) {
+      updateData.collab = collab || null;
     }
     
     if (req.files && req.files.length > 0) {

@@ -5,7 +5,9 @@ import Wishlist from "../models/wishlist.js";
 
 const createProducts = async (req, res) => {
     try {
-        let { name, description, price, category, sizes, stock, isFeatured } = req.body;
+        let { name, description, price, category, sizes, stock, isFeatured, collab } = req.body;
+
+        console.log('createProducts body:', { name, category, collab, isFeatured });
 
         // Validate category
         if (!Object.values(TSHIRT_CATEGORIES).includes(category)) {
@@ -42,6 +44,7 @@ const createProducts = async (req, res) => {
             images: cloudinaryUrls,
             stock: stock || 0,
             isFeatured: isFeatured || false,
+            collab: collab || null,
         });
 
         res.status(201).json({
@@ -274,4 +277,55 @@ const getQR = async (req, res) => {
     }
 };
 
-export { createProducts, getProducts, getFeaturedProducts, getProductById, getAllProducts };
+export { createProducts, getProducts, getFeaturedProducts, getProductById, getAllProducts, getProductsByCollab };
+
+// Get products by collab slug
+async function getProductsByCollab(req, res) {
+    try {
+        const { slug } = req.params;
+        let { page = 1, limit = 50 } = req.query;
+        const userId = req.user?._id;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+        const skip = (page - 1) * limit;
+
+        const query = { collab: slug };
+        const total = await Product.countDocuments(query);
+
+        const products = await Product.find(query)
+            .skip(skip)
+            .limit(limit)
+            .sort({ createdAt: -1 });
+
+        // Get user's wishlist if authenticated
+        let wishlistProductIds = [];
+        if (userId) {
+            const wishlist = await Wishlist.findOne({ userId });
+            if (wishlist) {
+                wishlistProductIds = wishlist.products.map(item => item.product.toString());
+            }
+        }
+
+        const formattedProducts = products.map(product => ({
+            ...product.toObject(),
+            images: product.images.map(img => img.url),
+            in_wishlist: userId ? wishlistProductIds.includes(product._id.toString()) : false
+        }));
+
+        res.status(200).json({
+            success: true,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            totalProducts: total,
+            products: formattedProducts
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to get collab products",
+            error: error.message
+        });
+    }
+}

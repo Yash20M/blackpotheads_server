@@ -47,6 +47,11 @@ const productSchema = new Schema({
     isFeatured: {
         type: Boolean,
         default: false
+    },
+    collab: {
+        type: String,
+        default: null,
+        index: true
     }
 }, { timestamps: true });
 
