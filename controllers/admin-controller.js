@@ -100,14 +100,31 @@ const getallproducts = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const totalProducts = await Product.countDocuments();
-    const products = await Product.find().skip(skip).limit(limit);
+    const products = await Product.find().skip(skip).limit(limit).sort({ createdAt: -1 });
+
+    // Format products to include collab field
+    const formattedProducts = products.map(product => ({
+      _id: product._id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      category: product.category,
+      sizes: product.sizes,
+      images: product.images,
+      stock: product.stock,
+      isFeatured: product.isFeatured,
+      collab: product.collab || null, // Include collab field (slug or null)
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+      __v: product.__v
+    }));
 
     res.status(200).json({
       success: true,
       currentPage: page,
       totalPages: Math.ceil(totalProducts / limit),
       totalProducts,
-      products,
+      products: formattedProducts,
     });
   } catch (error) {
     res.status(500).json({

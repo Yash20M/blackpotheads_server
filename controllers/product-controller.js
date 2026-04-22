@@ -315,8 +315,7 @@ async function getProductsByCollab(req, res) {
 
         res.status(200).json({
             success: true,
-            page,
-            limit,
+            currentPage: page,
             totalPages: Math.ceil(total / limit),
             totalProducts: total,
             products: formattedProducts
