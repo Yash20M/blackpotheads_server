@@ -1,0 +1,66 @@
+import mongoose, { Schema } from "mongoose";
+
+// T-shirt categories - STRICT enum
+const TSHIRT_CATEGORIES = {
+    SHIVA: "Shiva",
+    SHROOMS: "Shrooms",
+    ACID: "ACID",
+    CHAKRAS: "Chakras",
+    DARK: "Dark",
+    RICK_N_MORTY: "Rick n Morty"
+};
+
+// T-shirt sizes
+const TSHIRT_SIZES = ["S", "M", "L", "XL", "XXL"];
+
+const productSchema = new Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    description: {
+        type: String,
+        required: true
+    },
+    price: {
+        type: Number,
+        required: true
+    },
+    category: {
+        type: String,
+        required: true,
+        enum: Object.values(TSHIRT_CATEGORIES)
+    },
+    sizes: {
+        type: [String],
+        enum: TSHIRT_SIZES,
+        default: TSHIRT_SIZES
+    },
+    sizeInventory: {
+        type: Map,
+        of: Number,
+        default: {}
+    },
+    images: {
+        type: Array,
+        required: true
+    },
+    stock: {
+        type: Number,
+        default: 0
+    },
+    isFeatured: {
+        type: Boolean,
+        default: false
+    },
+    collab: {
+        type: String,
+        default: null,
+        index: true
+    }
+}, { timestamps: true });
+
+const Product = mongoose.model("Product", productSchema);
+
+export { TSHIRT_CATEGORIES, TSHIRT_SIZES };
+export default Product;
