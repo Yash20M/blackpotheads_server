@@ -8,7 +8,7 @@ import {
     adminGetAllReviews,
     adminDeleteReview
 } from "../controllers/review-controller.js";
-import { authMiddleware, adminMiddleware } from "../middlewares/auth-middleware.js";
+import { authMiddleware, adminMiddleware, optionalAuthMiddleware } from "../middlewares/auth-middleware.js";
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ const router = express.Router();
 router.get("/product/:productId", getProductReviews); // Get all reviews for a product
 
 // User routes (authenticated)
-router.post("/", authMiddleware, createReview); // Create a review
+router.post("/", optionalAuthMiddleware, createReview); // Create a review — guests allowed
 router.get("/my-reviews", authMiddleware, getUserReviews); // Get user's own reviews
 router.put("/:reviewId", authMiddleware, updateReview); // Update own review
 router.delete("/:reviewId", authMiddleware, deleteReview); // Delete own review

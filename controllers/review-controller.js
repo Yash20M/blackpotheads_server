@@ -3,12 +3,13 @@ import Product from "../models/Product.js";
 import Order from "../models/order.js";
 
 /**
- * Create a review (User only)
+ * Create a review (User or Guest)
  */
 const createReview = async (req, res) => {
     try {
-        const { productId, rating, comment } = req.body;
-        const userId = req.user._id;
+        const { productId, rating, comment, displayName } = req.body;
+        const userId = req.user?._id || null;
+        const guestName = displayName?.trim() || 'Anonymous';
 
         // Validate input
         if (!productId || !rating || !comment) {
@@ -34,25 +35,31 @@ const createReview = async (req, res) => {
             });
         }
 
-        // Check if user already reviewed this product
-        const existingReview = await Review.findOne({ product: productId, user: userId });
-        if (existingReview) {
-            return res.status(400).json({
-                success: false,
-                message: "You have already reviewed this product. Use update instead."
+        // If logged in — check for duplicate review
+        if (userId) {
+            const existingReview = await Review.findOne({ product: productId, user: userId });
+            if (existingReview) {
+                return res.status(400).json({
+                    success: false,
+                    message: "You have already reviewed this product. Use update instead."
+                });
+            }
+        }
+
+        // Check if user purchased this product (verified purchase) — only for logged-in users
+        let hasPurchased = false;
+        if (userId) {
+            hasPurchased = await Order.findOne({
+                user: userId,
+                "items.product": productId,
+                status: { $in: ["Processing", "Shipped", "Delivered"] }
             });
         }
 
-        // Check if user purchased this product (verified purchase)
-        const hasPurchased = await Order.findOne({
-            user: userId,
-            "items.product": productId,
-            status: { $in: ["Processing", "Shipped", "Delivered"] }
-        });
-
         const review = new Review({
             product: productId,
-            user: userId,
+            user: userId || undefined,
+            guestName: userId ? undefined : guestName,
             rating,
             comment,
             isVerifiedPurchase: !!hasPurchased
@@ -60,8 +67,9 @@ const createReview = async (req, res) => {
 
         await review.save();
 
-        // Populate user details
-        await review.populate("user", "name email");
+        if (userId) {
+            await review.populate("user", "name email");
+        }
 
         res.status(201).json({
             success: true,

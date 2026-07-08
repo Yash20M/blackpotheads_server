@@ -9,7 +9,13 @@ const reviewSchema = new Schema({
     user: {
         type: Schema.Types.ObjectId,
         ref: "User",
-        required: true
+        required: false,   // optional — guests can review without login
+        default: null
+    },
+    guestName: {
+        type: String,
+        trim: true,
+        default: null      // used when user is null (guest review)
     },
     rating: {
         type: Number,
@@ -29,8 +35,8 @@ const reviewSchema = new Schema({
     }
 }, { timestamps: true });
 
-// Compound index to ensure one review per user per product
-reviewSchema.index({ product: 1, user: 1 }, { unique: true });
+// Compound index — unique per logged-in user per product (sparse so guests are excluded)
+reviewSchema.index({ product: 1, user: 1 }, { unique: true, sparse: true });
 
 const Review = mongoose.model("Review", reviewSchema);
 
