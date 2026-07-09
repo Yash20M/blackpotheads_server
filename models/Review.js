@@ -35,8 +35,11 @@ const reviewSchema = new Schema({
     }
 }, { timestamps: true });
 
-// Compound index — unique per logged-in user per product (sparse so guests are excluded)
-reviewSchema.index({ product: 1, user: 1 }, { unique: true, sparse: true });
+// Compound index — unique only for logged-in users (exclude null/guest users)
+reviewSchema.index(
+  { product: 1, user: 1 },
+  { unique: true, partialFilterExpression: { user: { $type: 'objectId' } } }
+);
 
 const Review = mongoose.model("Review", reviewSchema);
 
