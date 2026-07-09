@@ -103,9 +103,9 @@ app.use("/api/v1/wishlist", wishlistRoutes)
 app.use("/api/v1/cart", cartRoutes)
 app.use("/api/admin", adminRoutes)
 
-app.use("/api/v1", offerRoutes)  // Move offers BEFORE orders
+app.use("/api/v1/reviews", reviewRoutes)  // Reviews BEFORE orderRoutes to avoid auth conflict
+app.use("/api/v1", offerRoutes)
 app.use("/api/v1", orderRoutes)
-app.use("/api/v1/reviews", reviewRoutes)
 
 
 app.use(errorMiddleware);
