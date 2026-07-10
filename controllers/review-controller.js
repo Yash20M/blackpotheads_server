@@ -60,7 +60,9 @@ const createReview = async (req, res) => {
         // Upload images to Cloudinary if provided
         let imageUrls = [];
         if (req.files && req.files.length > 0) {
-            imageUrls = await uploadFileToCloudinary(req.files);
+            const uploaded = await uploadFileToCloudinary(req.files);
+            // uploadFileToCloudinary returns objects with .url — extract strings
+            imageUrls = uploaded.map(img => typeof img === 'string' ? img : img.url).filter(Boolean);
         }
 
         const review = new Review({
