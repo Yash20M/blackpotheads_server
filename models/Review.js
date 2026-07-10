@@ -32,6 +32,10 @@ const reviewSchema = new Schema({
     isVerifiedPurchase: {
         type: Boolean,
         default: false
+    },
+    images: {
+        type: [String],
+        default: []
     }
 }, { timestamps: true });
 

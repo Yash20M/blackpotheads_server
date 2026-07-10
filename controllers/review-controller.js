@@ -1,6 +1,7 @@
 import Review from "../models/Review.js";
 import Product from "../models/Product.js";
 import Order from "../models/order.js";
+import { uploadFileToCloudinary } from "../utils/utility.js";
 
 /**
  * Create a review (User or Guest)
@@ -56,13 +57,20 @@ const createReview = async (req, res) => {
             });
         }
 
+        // Upload images to Cloudinary if provided
+        let imageUrls = [];
+        if (req.files && req.files.length > 0) {
+            imageUrls = await uploadFileToCloudinary(req.files);
+        }
+
         const review = new Review({
             product: productId,
             user: userId || undefined,
             guestName: userId ? undefined : guestName,
             rating,
             comment,
-            isVerifiedPurchase: !!hasPurchased
+            isVerifiedPurchase: !!hasPurchased,
+            images: imageUrls,
         });
 
         await review.save();
