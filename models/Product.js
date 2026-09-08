@@ -7,7 +7,7 @@ const TSHIRT_CATEGORIES = {
     ACID: "ACID",
     CHAKRAS: "Chakras",
     DARK: "Dark",
-    RICK_N_MORTY: "Rick n Morty"
+    RICK_N_MORTY: "Psyence"
 };
 
 // T-shirt sizes

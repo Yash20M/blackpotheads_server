@@ -1,6 +1,37 @@
 import mongoose from "mongoose";
 
+// Generate BP-AUG26-XXXX format order number
+async function generateOrderNumber() {
+    const now = new Date();
+    const month = now.toLocaleString('en-US', { month: 'short' }).toUpperCase(); // AUG
+    const year = String(now.getFullYear()).slice(-2);                             // 26
+    const prefix = `BP-${month}${year}`;
+
+    // Find the highest sequence number for this month-year
+    const regex = new RegExp(`^${prefix}-`);
+    const lastOrder = await mongoose.model('Order').findOne(
+        { orderNumber: { $regex: regex } },
+        { orderNumber: 1 },
+        { sort: { orderNumber: -1 } }
+    );
+
+    let seq = 1;
+    if (lastOrder && lastOrder.orderNumber) {
+        const parts = lastOrder.orderNumber.split('-');
+        const lastSeq = parseInt(parts[parts.length - 1], 10);
+        if (!isNaN(lastSeq)) seq = lastSeq + 1;
+    }
+
+    return `${prefix}-${String(seq).padStart(4, '0')}`;
+}
+
 const orderSchema = new mongoose.Schema({
+    orderNumber: {
+        type: String,
+        unique: true,
+        sparse: true, // allows null for old orders
+    },
+
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false }, // Made optional for guest checkout
     
     // Guest user information (required if user is not provided)
@@ -38,6 +69,14 @@ const orderSchema = new mongoose.Schema({
         default: 'COD'
     },
     createdAt: { type: Date, default: Date.now }
+});
+
+// Auto-generate orderNumber before saving
+orderSchema.pre('save', async function (next) {
+    if (this.isNew && !this.orderNumber) {
+        this.orderNumber = await generateOrderNumber();
+    }
+    next();
 });
 
 // Validation: Either user OR guestInfo must be provided

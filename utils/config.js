@@ -5,10 +5,16 @@ import User from "../models/user.js";
 const connectDB = async () => {
     try {
         const mongoUri = process.env.MONGO_URI ;
-        await mongoose.connect(mongoUri);
+        await mongoose.connect(mongoUri, {
+            serverSelectionTimeoutMS: 30000,
+            connectTimeoutMS: 30000,
+            socketTimeoutMS: 30000,
+        });
         console.log("Connected to MongoDB");
     } catch (error) {
-        console.log(error);
+        console.log("MongoDB connection error:", error.message);
+        console.log("Retrying in 5 seconds...");
+        setTimeout(connectDB, 5000);
     }
 };
 

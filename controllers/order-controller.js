@@ -2,8 +2,9 @@ import Order from "../models/order.js";
 import Cart from "../models/Cart.js";
 import Product from "../models/Product.js";
 import Payment from "../models/Payment.js";
-import { calculateTotalAmount } from "../utils/utility.js";
+import { calculateTotalAmount, calculateBulkDiscount } from "../utils/utility.js";
 import { razorpayInstance, verifyPaymentSignature } from "../utils/razorpay.js";
+import { sendTelegramNotification, formatOrderMessage } from "../utils/telegram.js";
 
 /**
  * Create Razorpay order (Step 1 - for online payment)
@@ -20,7 +21,7 @@ const createRazorpayOrder = async (req, res) => {
 
         const calculatedAmount = calculateTotalAmount(cart.items);
 
-        if (calculatedAmount !== totalAmount) {
+        if (Math.abs(calculatedAmount - totalAmount) > 1) {
             return res.status(400).json({ 
                 success: false, 
                 message: "Total amount mismatch" 
@@ -172,7 +173,14 @@ const verifyPayment = async (req, res) => {
         // Clear cart
         await Cart.findOneAndDelete({ user: userId });
 
-
+        // Telegram notification — fire and forget
+        const populatedPaidOrder = await Order.findById(order._id).populate('items.product', 'name').populate('user', 'name email phone').lean();
+        const paidCustomerInfo = populatedPaidOrder?.user ? {
+            name: populatedPaidOrder.user.name,
+            email: populatedPaidOrder.user.email,
+            phone: populatedPaidOrder.user.phone,
+        } : null;
+        sendTelegramNotification(formatOrderMessage(populatedPaidOrder || order, paidCustomerInfo));
 
         res.status(200).json({
             success: true,
@@ -213,7 +221,7 @@ const createOrder = async (req, res) => {
 
         const getTotalAmount = calculateTotalAmount(cart.items);
 
-        if (getTotalAmount !== totalAmount) {
+        if (Math.abs(getTotalAmount - totalAmount) > 1) {
             return res.status(400).json({ success: false, message: "Total amount is not correct" });
         }
 
@@ -259,6 +267,15 @@ const createOrder = async (req, res) => {
 
         await order.save();
         await cart.deleteOne();
+
+        // Telegram notification — fire and forget
+        const populatedOrder = await Order.findById(order._id).populate('items.product', 'name').populate('user', 'name email phone').lean();
+        const customerInfo = populatedOrder?.user ? {
+            name: populatedOrder.user.name,
+            email: populatedOrder.user.email,
+            phone: populatedOrder.user.phone,
+        } : null;
+        sendTelegramNotification(formatOrderMessage(populatedOrder || order, customerInfo));
 
         res.status(201).json({ 
             success: true, 
@@ -695,8 +712,14 @@ const createGuestOrder = async (req, res) => {
             await product.save();
         }
 
-        // Verify total amount
-        if (Math.abs(calculatedTotal - totalAmount) > 0.01) {
+        // Apply bulk discount
+        const totalQuantity = items.reduce((acc, item) => acc + (item.quantity || 0), 0);
+        const discountPct = calculateBulkDiscount(totalQuantity);
+        const discountAmount = Math.round(calculatedTotal * discountPct / 100);
+        calculatedTotal = calculatedTotal - discountAmount;
+
+        // Verify total amount (allow ±1 for rounding)
+        if (Math.abs(calculatedTotal - totalAmount) > 1) {
             return res.status(400).json({ 
                 success: false, 
                 message: "Total amount mismatch" 
@@ -720,12 +743,16 @@ const createGuestOrder = async (req, res) => {
 
         await order.save();
 
+        // Telegram notification — fire and forget
+        const populatedGuestOrder = await Order.findById(order._id).populate('items.product', 'name').lean();
+        sendTelegramNotification(formatOrderMessage(populatedGuestOrder || order));
+
         res.status(201).json({ 
             success: true, 
             message: "Guest order created successfully", 
             order: {
                 _id: order._id,
-                orderNumber: order._id,
+                orderNumber: order.orderNumber,
                 guestInfo: order.guestInfo,
                 items: order.items,
                 totalAmount: order.totalAmount,
@@ -736,7 +763,7 @@ const createGuestOrder = async (req, res) => {
             },
             trackingInfo: {
                 message: "Save your order ID to track your order",
-                orderId: order._id,
+                orderId: order.orderNumber || order._id,
                 email: guestInfo.email,
                 phone: guestInfo.phone
             }
@@ -805,7 +832,7 @@ const trackGuestOrder = async (req, res) => {
             success: true, 
             order: {
                 _id: order._id,
-                orderNumber: order._id,
+                orderNumber: order.orderNumber,
                 guestInfo: order.guestInfo,
                 items: order.items,
                 totalAmount: order.totalAmount,
@@ -870,7 +897,7 @@ const trackGuestOrdersByContact = async (req, res) => {
         // Format orders for response
         const formattedOrders = orders.map(order => ({
             _id: order._id,
-            orderNumber: order._id,
+            orderNumber: order.orderNumber,
             guestInfo: order.guestInfo,
             items: order.items,
             totalAmount: order.totalAmount,
@@ -942,7 +969,7 @@ const getGuestOrderById = async (req, res) => {
             success: true, 
             order: {
                 _id: order._id,
-                orderNumber: order._id,
+                orderNumber: order.orderNumber,
                 guestInfo: order.guestInfo,
                 items: order.items,
                 totalAmount: order.totalAmount,
@@ -1042,8 +1069,14 @@ const createGuestRazorpayOrder = async (req, res) => {
             });
         }
 
-        // Verify total amount
-        if (Math.abs(calculatedTotal - totalAmount) > 0.01) {
+        // Apply bulk discount
+        const totalQuantity = items.reduce((acc, item) => acc + (item.quantity || 0), 0);
+        const discountPct = calculateBulkDiscount(totalQuantity);
+        const discountAmount = Math.round(calculatedTotal * discountPct / 100);
+        calculatedTotal = calculatedTotal - discountAmount;
+
+        // Verify total amount (allow ±1 for rounding)
+        if (Math.abs(calculatedTotal - totalAmount) > 1) {
             return res.status(400).json({ 
                 success: false, 
                 message: "Total amount mismatch" 
@@ -1193,12 +1226,16 @@ const verifyGuestPayment = async (req, res) => {
             }
         }
 
+        // Telegram notification — fire and forget
+        const populatedGuestPaidOrder = await Order.findById(order._id).populate('items.product', 'name').lean();
+        sendTelegramNotification(formatOrderMessage(populatedGuestPaidOrder || order));
+
         res.status(200).json({
             success: true,
             message: "Payment verified and guest order confirmed",
             order: {
                 _id: order._id,
-                orderNumber: order._id,
+                orderNumber: order.orderNumber,
                 guestInfo: order.guestInfo,
                 items: order.items,
                 totalAmount: order.totalAmount,

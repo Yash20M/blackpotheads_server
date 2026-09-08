@@ -61,11 +61,31 @@ const getBase64 = (file) => {
   
 
 
+// Calculate discount based on total items quantity
+export const calculateBulkDiscount = (totalQuantity) => {
+    if (totalQuantity >= 5) return 20;  // 20% off
+    if (totalQuantity >= 4) return 15;  // 15% off
+    if (totalQuantity >= 3) return 10;  // 10% off
+    if (totalQuantity >= 2) return 5;   // 5% off
+    return 0;
+};
+
 export const calculateTotalAmount = (items=[]) => {
-    return items.reduce((acc, item) => {
+    // Calculate raw subtotal
+    const subtotal = items.reduce((acc, item) => {
         const price = item?.priceSnapshot || item?.product?.price || 0;
         return acc + price * item?.quantity;
     }, 0);
+
+    // Calculate total quantity for bulk discount
+    const totalQuantity = items.reduce((acc, item) => acc + (item?.quantity || 0), 0);
+    
+    // Apply discount
+    const discountPct = calculateBulkDiscount(totalQuantity);
+    const discountAmount = Math.round(subtotal * discountPct / 100);
+    const finalAmount = subtotal - discountAmount;
+
+    return finalAmount;
 }
 
 

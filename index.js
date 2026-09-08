@@ -15,6 +15,7 @@ import offerRoutes from "./routes/offer-routes.js";
 import reviewRoutes from "./routes/review-routes.js";
 import videoRoutes from "./routes/video-routes.js";
 import collabRoutes from "./routes/collab-routes.js";
+import blogRoutes from "./routes/blog-routes.js";
 import { startScheduledJobs } from "./utils/scheduledJobs.js";
 dotenv.config();
 
@@ -102,6 +103,7 @@ app.use("/api/v1", productRoutes)
 app.use("/api/v1/wishlist", wishlistRoutes)
 app.use("/api/v1/cart", cartRoutes)
 app.use("/api/admin", adminRoutes)
+app.use("/api", blogRoutes)  // Blog routes (public: /api/v1/blogs, admin: /api/admin/blogs)
 
 app.use("/api/v1/reviews", reviewRoutes)  // Reviews BEFORE orderRoutes to avoid auth conflict
 app.use("/api/v1", offerRoutes)
