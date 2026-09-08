@@ -5,7 +5,7 @@ export const TSHIRT_CATEGORIES = {
     ACID: "ACID",
     CHAKRAS: "Chakras",
     DARK: "Dark",
-    RICK_N_MORTY: "Rick n Morty"
+    RICK_N_MORTY: "Psyence"
 };
 
 // Seed data for T-shirts ONLY - MongoDB will auto-generate _id
@@ -410,7 +410,7 @@ export const products = [
         "isFeatured": true
     },
 
-    // ========== RICK N MORTY CATEGORY (6 products) ==========
+    // ========== Psyence CATEGORY (6 products) ==========
     {
         "name": "Rick and Morty Portal T-Shirt",
         "category": TSHIRT_CATEGORIES.RICK_N_MORTY,
